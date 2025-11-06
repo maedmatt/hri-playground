@@ -35,4 +35,4 @@ clean:
 	-rm -rf .mypy_cache/
 	-rm -rf .venv/
 	-rm -rf CLAUDE.md AGENTS.md
-	-find . -type d -name "__pycache__" -exec rm -rf {} +
+	-rm -rf .ruff_cache
