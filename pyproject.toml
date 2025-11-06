@@ -14,6 +14,7 @@ version = "0.1.0"
 # ---- Main dependencies ----
 
 dependencies = [
+    "imitation>=1.0.1",
 ]
 
 
