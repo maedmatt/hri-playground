@@ -2,7 +2,7 @@
 Minimal example that spins up the Gymnasium Ant environment and renders it.
 
 Usage (from repo root):
-    uv run python src/render_ant.py --episodes 2 --max-steps 200
+    uv run python src/render_humanoid.py --episodes 10 --max-steps 200
 """
 
 from __future__ import annotations
