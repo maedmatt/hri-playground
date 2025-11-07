@@ -45,23 +45,25 @@ def parse_args() -> argparse.Namespace:
 
 def rollout_ant(episodes: int, max_steps: int, frame_delay: float, render_mode: str) -> None:
     env = gym.make("Ant-v5", render_mode=render_mode)
-    obs, _ = env.reset(seed=0)
+    _obs, _ = env.reset(seed=0)
     try:
         for episode in range(episodes):
             for step in range(max_steps):
                 # Random policy is enough to demonstrate rendering.
                 action = env.action_space.sample()
-                obs, reward, terminated, truncated, _ = env.step(action)
+                _obs, reward, terminated, truncated, _ = env.step(action)
                 if render_mode != "human":
                     env.render()
                 time.sleep(frame_delay)
                 if terminated or truncated:
-                    print(f"Episode {episode + 1} finished after {step + 1} steps (reward {reward:.2f}).")
-                    obs, _ = env.reset()
+                    print(
+                        f"Episode {episode + 1} finished after {step + 1} steps (reward {reward:.2f})."
+                    )
+                    _obs, _ = env.reset()
                     break
             else:
                 print(f"Episode {episode + 1} hit max steps ({max_steps}). Resetting...")
-                obs, _ = env.reset()
+                _obs, _ = env.reset()
     finally:
         env.close()
 
