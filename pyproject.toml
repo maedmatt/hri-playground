@@ -7,14 +7,14 @@ authors = [
     { name="maedmatt", email="matteo.calabria01@gmail.com" },
 ]
 readme = "README.md"
-requires-python = ">=3.11,<4.0"
+requires-python = ">=3.11,<3.14"
 version = "0.1.0"
 
 
 # ---- Main dependencies ----
 
 dependencies = [
-    "imitation>=1.0.1",
+    "gymnasium-robotics>=1.4.1",
 ]
 
 

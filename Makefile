@@ -20,14 +20,10 @@ test:
 upgrade:
 	uv sync --upgrade --all-extras --dev
 
-agent-rules: CLAUDE.md AGENTS.md
-
-# Use .cursor/rules for sources of rules.
-# Create Claude and Codex rules from these.
-CLAUDE.md: .cursor/rules/general.mdc .cursor/rules/python.mdc
+claude:
 	cat .cursor/rules/general.mdc .cursor/rules/python.mdc > CLAUDE.md
 
-AGENTS.md: .cursor/rules/general.mdc .cursor/rules/python.mdc
+codex:
 	cat .cursor/rules/general.mdc .cursor/rules/python.mdc > AGENTS.md
 
 clean:
