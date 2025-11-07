@@ -44,7 +44,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def rollout_ant(episodes: int, max_steps: int, frame_delay: float, render_mode: str) -> None:
-    env = gym.make("Ant-v5", render_mode=render_mode)
+    env = gym.make("Humanoid-v5", render_mode=render_mode)
     _obs, _ = env.reset(seed=0)
     try:
         for episode in range(episodes):
