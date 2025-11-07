@@ -1,5 +1,5 @@
 """
-Minimal example that spins up the Gymnasium Ant environment and renders it.
+Minimal example that spins up the Gymnasium Humanoid environment and renders it.
 
 Usage (from repo root):
     uv run python src/render_humanoid.py --episodes 10 --max-steps 200
@@ -14,7 +14,7 @@ import gymnasium as gym
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Render the Gymnasium Ant environment.")
+    parser = argparse.ArgumentParser(description="Render the Gymnasium Humanoid environment.")
     parser.add_argument(
         "--episodes",
         type=int,

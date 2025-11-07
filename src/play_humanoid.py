@@ -1,5 +1,5 @@
 """
-Play back a locally saved PPO Humanoid-v5 policy.
+Play back a locally saved PPO HumanoidStandup-v5 policy.
 
 Usage (from repo root):
     uv run python src/play_humanoid.py --episodes 10 --deterministic
@@ -25,7 +25,7 @@ VECNORM_PATH: Final = Path("models/ppo_humanoid/vecnormalize_final.pkl")
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser("Render Humanoid-v5 with a pretrained policy.")
+    parser = argparse.ArgumentParser("Render HumanoidStandup-v5 with a pretrained policy.")
     parser.add_argument("--episodes", type=int, default=1)
     parser.add_argument("--max-steps", type=int, default=2_000)
     parser.add_argument("--sleep", type=float, default=1 / 40, help="Delay between frames.")
@@ -45,7 +45,7 @@ def load_policy() -> PPO:
 
 def build_env(render_mode: str) -> VecEnv:
     def _make_env() -> Env[Any, Any]:
-        return gym.make("Humanoid-v5", render_mode=render_mode)
+        return gym.make("HumanoidStandup-v5", render_mode=render_mode)
 
     vec_env: VecEnv = DummyVecEnv([_make_env])
     if not VECNORM_PATH.exists():
