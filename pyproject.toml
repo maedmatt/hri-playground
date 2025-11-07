@@ -15,6 +15,9 @@ version = "0.1.0"
 
 dependencies = [
     "gymnasium-robotics>=1.4.1",
+    "huggingface-hub>=0.26.0",
+    "shimmy>=2.0.0",
+    "stable-baselines3>=2.3.2",
 ]
 
 
