@@ -18,6 +18,8 @@ dependencies = [
     "huggingface-hub>=0.26.0",
     "shimmy>=2.0.0",
     "stable-baselines3>=2.3.2",
+    "tensorboard>=2.20.0",
+    "wandb>=0.18.7",
 ]
 
 
@@ -38,7 +40,7 @@ dev = [
 
 [tool.ruff]
 # Set as desired, typically 88 (black standard) or 100 (wide).
-line-length = 100
+line-length = 88
 
 [tool.ruff.lint]
 select = [

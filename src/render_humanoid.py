@@ -1,5 +1,5 @@
 """
-Minimal example that spins up the Gymnasium Humanoid environment and renders it.
+Minimal example that spins up the Gymnasium Humanoid environment and renders it
 
 Usage (from repo root):
     uv run python src/render_humanoid.py --episodes 10 --max-steps 200
@@ -14,7 +14,9 @@ import gymnasium as gym
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Render the Gymnasium Humanoid environment.")
+    parser = argparse.ArgumentParser(
+        description="Render the Gymnasium Humanoid environment."
+    )
     parser.add_argument(
         "--episodes",
         type=int,
@@ -43,7 +45,9 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def rollout_ant(episodes: int, max_steps: int, frame_delay: float, render_mode: str) -> None:
+def rollout(
+    episodes: int, max_steps: int, frame_delay: float, render_mode: str
+) -> None:
     env = gym.make("Humanoid-v5", render_mode=render_mode)
     _obs, _ = env.reset(seed=0)
     try:
@@ -62,7 +66,9 @@ def rollout_ant(episodes: int, max_steps: int, frame_delay: float, render_mode: 
                     _obs, _ = env.reset()
                     break
             else:
-                print(f"Episode {episode + 1} hit max steps ({max_steps}). Resetting...")
+                print(
+                    f"Episode {episode + 1} hit max steps ({max_steps}). Resetting..."
+                )
                 _obs, _ = env.reset()
     finally:
         env.close()
@@ -70,7 +76,7 @@ def rollout_ant(episodes: int, max_steps: int, frame_delay: float, render_mode: 
 
 def main() -> None:
     args = parse_args()
-    rollout_ant(args.episodes, args.max_steps, args.sleep, args.render_mode)
+    rollout(args.episodes, args.max_steps, args.sleep, args.render_mode)
 
 
 if __name__ == "__main__":
