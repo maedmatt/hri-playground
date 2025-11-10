@@ -184,3 +184,7 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# RL training artifacts
+wandb/
+runs/
