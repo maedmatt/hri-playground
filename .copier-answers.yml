@@ -1,9 +1,0 @@
-# Changes here will be overwritten by Copier. Do not edit manually.
-_commit: v1.0.0
-_src_path: gh:maedmatt/simple-modern-uv
-package_author_email: matteo.calabria01@gmail.com
-package_author_name: maedmatt
-package_description: Human-Robot Interaction developed by ABC group for the Social
-    Robotics Final 2025
-package_github_org: maedmatt
-package_name: hri-playground

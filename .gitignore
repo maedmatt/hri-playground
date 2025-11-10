@@ -188,3 +188,6 @@ cython_debug/
 # RL training artifacts
 wandb/
 runs/
+
+# Copier artifacts
+.copier-answers.yml
