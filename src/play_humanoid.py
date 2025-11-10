@@ -1,8 +1,8 @@
 """
 Simple policy playback script for Gymnasium locomotion tasks
 
-Usage (repo root):
-    uv run python src/play_humanoid.py --model-path models/Humanoid-v5/ppo_latest.zip --env-id Humanoid-v5
+Example:
+    uv run python src/play_humanoid.py --model-path models/Humanoid-v5/sac_latest.zip --env-id Humanoid-v5
 """
 
 from __future__ import annotations
@@ -13,9 +13,17 @@ from pathlib import Path
 from typing import Final
 
 import gymnasium as gym
-from stable_baselines3 import PPO
+from stable_baselines3 import A2C, PPO, SAC, TD3
+from stable_baselines3.common.base_class import BaseAlgorithm
 
-DEFAULT_MODEL: Final = Path("models/Humanoid-v5/humanoid_prime32.zip")
+DEFAULT_MODEL: Final = Path("models/Humanoid-v5/sac_latest.zip")
+
+ALGORITHMS: dict[str, type[BaseAlgorithm]] = {
+    "ppo": PPO,
+    "a2c": A2C,
+    "sac": SAC,
+    "td3": TD3,
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -35,18 +43,25 @@ def parse_args() -> argparse.Namespace:
         default="human",
         choices=("human", "rgb_array"),
     )
+    parser.add_argument(
+        "--algo",
+        type=str,
+        default="sac",
+        choices=sorted(ALGORITHMS),
+        help="Which Stable-Baselines3 algorithm to use.",
+    )
     return parser.parse_args()
 
 
-def load_policy(model_path: Path) -> PPO:
+def load_policy(model_path: Path, algo: str) -> BaseAlgorithm:
     if not model_path.exists():
         msg = f"Policy checkpoint not found at {model_path}"
         raise FileNotFoundError(msg)
-    return PPO.load(str(model_path), device="cpu")
+    return ALGORITHMS[algo].load(str(model_path), device="cpu")
 
 
 def rollout(
-    policy: PPO,
+    policy: BaseAlgorithm,
     env_id: str,
     episodes: int,
     max_steps: int,
@@ -81,7 +96,7 @@ def rollout(
 
 def main() -> None:
     args = parse_args()
-    policy = load_policy(args.model_path)
+    policy = load_policy(args.model_path, args.algo)
     rollout(
         policy=policy,
         env_id=args.env_id,
