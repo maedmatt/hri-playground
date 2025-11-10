@@ -15,7 +15,7 @@ from typing import Final
 import gymnasium as gym
 from stable_baselines3 import PPO
 
-DEFAULT_MODEL: Final = Path("models/Humanoid-v5/ppo_latest.zip")
+DEFAULT_MODEL: Final = Path("models/Humanoid-v5/humanoid_prime32.zip")
 
 
 def parse_args() -> argparse.Namespace:

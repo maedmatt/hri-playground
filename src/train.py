@@ -56,7 +56,7 @@ def parse_args() -> argparse.Namespace:
         "--policy", type=str, default="MlpPolicy", help="Policy class for SB3."
     )
     parser.add_argument("--total-timesteps", type=int, default=1_000_000)
-    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--seed", type=int, default=42) # “Life, the universe, and everything”!
     parser.add_argument(
         "--n-envs",
         type=int,
