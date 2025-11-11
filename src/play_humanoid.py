@@ -57,7 +57,7 @@ def load_policy(model_path: Path, algo: str) -> BaseAlgorithm:
     if not model_path.exists():
         msg = f"Policy checkpoint not found at {model_path}"
         raise FileNotFoundError(msg)
-    return ALGORITHMS[algo].load(str(model_path), device="cpu")
+    return ALGORITHMS[algo].load(str(model_path), device="auto")
 
 
 def rollout(
