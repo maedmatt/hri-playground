@@ -154,6 +154,7 @@ def init_wandb(args: argparse.Namespace) -> tuple[Any, list[BaseCallback]]:
     )
     callback = WandbCallback(
         gradient_save_freq=0,
+        model_save_freq=100000,
         model_save_path=str(args.log_dir / "wandb"),
         verbose=2,
     )
