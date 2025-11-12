@@ -217,13 +217,13 @@ def init_wandb(args: argparse.Namespace) -> tuple[Any, list[BaseCallback]]:
     callbacks = [
         WandbCallback(
             gradient_save_freq=0,
-            model_save_freq=100000,
+            model_save_freq=250000,
             model_save_path=str(args.log_dir / args.env_id / "checkpoints"),
             verbose=2,
         ),
         VideoRecordingCallback(
             env_id=args.env_id,
-            record_freq=100000,
+            record_freq=250000,
             n_episodes=1,
             verbose=2,
         ),
