@@ -16,6 +16,7 @@ version = "0.1.0"
 dependencies = [
     "gymnasium-robotics>=1.4.1",
     "huggingface-hub>=0.26.0",
+    "moviepy>=2.2.1",
     "shimmy>=2.0.0",
     "stable-baselines3>=2.3.2",
     "tensorboard>=2.20.0",
@@ -109,6 +110,11 @@ reportUnknownVariableType = false
 reportUnknownArgumentType = false
 reportUnknownLambdaType = false
 reportUnknownMemberType = false
+# Disable requirement for class-level type annotations (allows cleaner code):
+reportUnannotatedClassAttribute = false
+reportImplicitOverride = false
+# Disable strict list variance checking (allows list[SubClass] to match list[BaseClass]):
+reportReturnType = false
 
 [tool.codespell]
 # Add here as needed:

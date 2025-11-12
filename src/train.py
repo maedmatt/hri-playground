@@ -40,6 +40,68 @@ ALGORITHMS: dict[str, type[BaseAlgorithm]] = {
 }
 
 
+class VideoRecordingCallback(BaseCallback):
+    """Records policy videos and uploads to wandb every N timesteps."""
+
+    def __init__(
+        self,
+        env_id: str,
+        record_freq: int,
+        n_episodes: int = 1,
+        video_length: int = 1000,
+        verbose: int = 0,
+    ):
+        super().__init__(verbose)
+        self.env_id = env_id
+        self.record_freq = record_freq
+        self.n_episodes = n_episodes
+        self.video_length = video_length
+        self.last_record_step = 0
+
+    def _on_step(self) -> bool:
+        if self.num_timesteps - self.last_record_step >= self.record_freq:
+            self._record_video()
+            self.last_record_step = self.num_timesteps
+        return True
+
+    def _record_video(self) -> None:
+        import tempfile
+
+        from gymnasium.wrappers import RecordVideo
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            eval_env = RecordVideo(
+                gym.make(self.env_id, render_mode="rgb_array"),
+                video_folder=tmpdir,
+                episode_trigger=lambda ep: ep < self.n_episodes,
+                name_prefix=f"step_{self.num_timesteps}",
+            )
+
+            for _ in range(self.n_episodes):
+                obs, _ = eval_env.reset()
+                done = False
+                steps = 0
+                while not done and steps < self.video_length:
+                    action, _ = self.model.predict(obs, deterministic=True)
+                    obs, _, terminated, truncated, _ = eval_env.step(action)
+                    done = terminated or truncated
+                    steps += 1
+
+            eval_env.close()
+
+            if wandb is not None:
+                video_files = list(Path(tmpdir).glob("*.mp4"))
+                for video_path in video_files:
+                    wandb.log(
+                        {
+                            "policy_video": wandb.Video(
+                                str(video_path), format="mp4"
+                            ),
+                            "step": self.num_timesteps, # step is not logged correctly :/
+                        }
+                    )
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train a Gymnasium agent with SB3.")
     parser.add_argument(
@@ -152,13 +214,21 @@ def init_wandb(args: argparse.Namespace) -> tuple[Any, list[BaseCallback]]:
         },
         sync_tensorboard=True,
     )
-    callback = WandbCallback(
-        gradient_save_freq=0,
-        model_save_freq=100000,
-        model_save_path=str(args.log_dir / args.env_id / "checkpoints"),
-        verbose=2,
-    )
-    return run, [callback]
+    callbacks = [
+        WandbCallback(
+            gradient_save_freq=0,
+            model_save_freq=100000,
+            model_save_path=str(args.log_dir / args.env_id / "checkpoints"),
+            verbose=2,
+        ),
+        VideoRecordingCallback(
+            env_id=args.env_id,
+            record_freq=100000,
+            n_episodes=1,
+            verbose=2,
+        ),
+    ]
+    return run, callbacks
 
 
 def resolve_save_path(args: argparse.Namespace) -> Path:
