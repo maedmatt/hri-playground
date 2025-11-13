@@ -1,8 +1,8 @@
 """
-Simple policy playback script for Gymnasium locomotion tasks
+Play a trained policy on a Gymnasium environment
 
 Example:
-    uv run python src/play_humanoid.py --model-path models/Humanoid-v5/sac_latest.zip --env-id Humanoid-v5
+    uv run src/play.py --model-path models/HalfCheetah-v5/ppo-seed42-n_envs8-1000000steps/ppo_latest.zip --env-id HalfCheetah-v5 --algo ppo
 """
 
 from __future__ import annotations
@@ -10,13 +10,10 @@ from __future__ import annotations
 import argparse
 import time
 from pathlib import Path
-from typing import Final
 
 import gymnasium as gym
 from stable_baselines3 import A2C, PPO, SAC, TD3
 from stable_baselines3.common.base_class import BaseAlgorithm
-
-DEFAULT_MODEL: Final = Path("models/Humanoid-v5/sac_latest.zip")
 
 ALGORITHMS: dict[str, type[BaseAlgorithm]] = {
     "ppo": PPO,
@@ -27,13 +24,24 @@ ALGORITHMS: dict[str, type[BaseAlgorithm]] = {
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Render a trained SB3 policy.")
-    parser.add_argument("--model-path", type=Path, default=DEFAULT_MODEL)
-    parser.add_argument("--env-id", type=str, default="Humanoid-v5")
+    parser = argparse.ArgumentParser(description="Play a trained SB3 policy.")
+    parser.add_argument(
+        "--model-path", type=Path, required=True, help="Path to model zip file"
+    )
+    parser.add_argument(
+        "--env-id", type=str, required=True, help="Gymnasium environment ID"
+    )
+    parser.add_argument(
+        "--algo",
+        type=str,
+        required=True,
+        choices=sorted(ALGORITHMS),
+        help="Algorithm used to train the model",
+    )
     parser.add_argument("--episodes", type=int, default=5)
     parser.add_argument("--max-steps", type=int, default=2_000)
     parser.add_argument(
-        "--sleep", type=float, default=1 / 40, help="Delay between frames."
+        "--sleep", type=float, default=1 / 40, help="Delay between frames"
     )
     parser.add_argument("--deterministic", action="store_true")
     parser.add_argument("--seed", type=int, default=0)
@@ -42,13 +50,6 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default="human",
         choices=("human", "rgb_array"),
-    )
-    parser.add_argument(
-        "--algo",
-        type=str,
-        default="sac",
-        choices=sorted(ALGORITHMS),
-        help="Which Stable-Baselines3 algorithm to use.",
     )
     return parser.parse_args()
 

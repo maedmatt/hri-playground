@@ -1,37 +1,44 @@
-# hri-playground
+# Human Robot Interaction Playground
 
-👉\[\[\[**This is the initial readme for your
-[simple-modern-uv](https://github.com/jlevy/simple-modern-uv) template.** Fill it in and
-delete this message!
-Below are general setup instructions that you may remove or keep and adapt for your
-project.\]\]\]
+Reinforcement learning experiments with Stable-Baselines3 and Gymnasium. Imitation learning support coming soon.
 
 ## Setup
 
-This project uses [**uv**](https://docs.astral.sh/uv/) for Python and dependency management.
-
-Install uv:
-```shell
-# macOS/Linux
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Or with brew
-brew install uv
-```
-
-Install dependencies:
-```shell
+```bash
 uv sync
 ```
 
-Run the main script:
-```shell
-uv run src/main.py
+## Train
+
+```bash
+# Train with default settings
+uv run src/train.py
+
+# Train with wandb logging
+uv run src/train.py --env-id HalfCheetah-v5 --algo ppo --wandb
+
+# Customize training
+uv run src/train.py --env-id Humanoid-v5 --algo sac --n-envs 8 --total-timesteps 2000000
 ```
 
-For more development workflows, see [development.md](development.md).
+## Play
 
-* * *
+```bash
+uv run src/play.py --model-path models/HalfCheetah-v5/ppo-seed42-n_envs8-1000000steps/ppo_latest.zip --env-id HalfCheetah-v5 --algo ppo
+```
 
-*This project was built from
-[simple-modern-uv](https://github.com/jlevy/simple-modern-uv).*
+## Key Arguments
+
+**Training:**
+- `--env-id`: Gymnasium environment (default: `Humanoid-v5`)
+- `--algo`: `ppo`, `sac`, `td3`, `a2c` (default: `ppo`)
+- `--total-timesteps`: Training steps (default: `1000000`)
+- `--n-envs`: Parallel environments (default: `1`)
+- `--checkpoint-freq`: Save checkpoints/videos every N steps (default: `250000`)
+- `--wandb`: Enable wandb logging
+
+**Playing:**
+- `--model-path`: Path to trained model (required)
+- `--env-id`: Gymnasium environment (required)
+- `--algo`: Algorithm used (required)
+- `--episodes`: Number of episodes (default: `5`)
