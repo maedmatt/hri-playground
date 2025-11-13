@@ -90,6 +90,7 @@ include = ["src", "tests", "devtools"]
 # By default BasedPyright is very strict, so you almost certainly want to disable
 # some of the rules.
 # First, these turn off warnings about (yes) how you ignore warnings:
+typeCheckingMode = "basic" # <== change this as you want
 reportIgnoreCommentWithoutRule = false
 reportUnnecessaryTypeIgnoreComment = false
 # A few typically noisy warnings are next.

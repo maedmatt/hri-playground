@@ -16,7 +16,10 @@ import gymnasium as gym
 from gymnasium.core import Env
 from stable_baselines3 import A2C, PPO, SAC, TD3
 from stable_baselines3.common.base_class import BaseAlgorithm
-from stable_baselines3.common.callbacks import BaseCallback
+from stable_baselines3.common.callbacks import (
+    BaseCallback,
+    CheckpointCallback,
+)
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from stable_baselines3.common.vec_env.base_vec_env import VecEnv
@@ -89,17 +92,49 @@ class VideoRecordingCallback(BaseCallback):
 
             eval_env.close()
 
-            if wandb is not None:
+            if wandb is not None and wandb.run is not None:
                 video_files = list(Path(tmpdir).glob("*.mp4"))
                 for video_path in video_files:
                     wandb.log(
                         {
-                            "policy_video": wandb.Video(
-                                str(video_path), format="mp4"
-                            ),
-                            "step": self.num_timesteps, # step is not logged correctly :/
+                            "policy_video": wandb.Video(str(video_path), format="mp4"),
                         }
                     )
+
+
+class WandbCheckpointCallback(CheckpointCallback):
+    """Saves checkpoints locally and uploads them to wandb."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.last_uploaded_timestep = -1
+
+    def _on_step(self) -> bool:
+        result = super()._on_step()
+
+        # If parent saved a new checkpoint, upload it
+        if (
+            self.num_timesteps != self.last_uploaded_timestep
+            and self.n_calls % self.save_freq == 0
+            and wandb is not None
+            and wandb.run is not None
+        ):
+            checkpoint_path = (
+                Path(self.save_path)
+                / f"{self.name_prefix}_{self.num_timesteps}_steps.zip"
+            )
+            if checkpoint_path.exists():
+                if self.verbose >= 1:
+                    print(f"Uploading checkpoint to wandb: {checkpoint_path.name}")
+                wandb.save(
+                    str(checkpoint_path),
+                    base_path=str(Path(self.save_path).parent),
+                    policy="now",
+                )
+                self.last_uploaded_timestep = self.num_timesteps
+            else:
+                print(f"Warning: Expected checkpoint not found: {checkpoint_path}")
+        return result
 
 
 def parse_args() -> argparse.Namespace:
@@ -159,6 +194,12 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Enable Weights & Biases logging.",
     )
+    parser.add_argument(
+        "--checkpoint-freq",
+        type=int,
+        default=250000,
+        help="Save checkpoints and videos every N environment timesteps.",
+    )
     return parser.parse_args()
 
 
@@ -203,7 +244,9 @@ def init_wandb(args: argparse.Namespace) -> tuple[Any, list[BaseCallback]]:
         raise RuntimeError(msg)
     run = wandb.init(
         project="hri-playground",
-        name=f"{args.algo}-{args.env_id}-seed{args.seed}-n_evs{args.n_envs}",
+        name=f"{args.algo}-{args.env_id}-seed{args.seed}-n_envs{args.n_envs}-{args.total_timesteps}steps",
+        group=args.env_id,
+        tags=[args.algo, f"seed{args.seed}", f"n_envs{args.n_envs}"],
         config={
             "env_id": args.env_id,
             "algo": args.algo,
@@ -214,16 +257,32 @@ def init_wandb(args: argparse.Namespace) -> tuple[Any, list[BaseCallback]]:
         },
         sync_tensorboard=True,
     )
+    # Use global_step (environment timesteps) as x-axis for all metrics
+    wandb.define_metric("global_step")
+    wandb.define_metric("*", step_metric="global_step")
+
+    # Create unique run folder: models/{env_id}/{algo}-seed{seed}-n_envs{n_envs}-{timesteps}steps/
+    run_name = (
+        f"{args.algo}-seed{args.seed}-n_envs{args.n_envs}-{args.total_timesteps}steps"
+    )
+    run_dir = args.log_dir / args.env_id / run_name
+    checkpoint_dir = run_dir / "checkpoints"
+
     callbacks = [
         WandbCallback(
             gradient_save_freq=0,
-            model_save_freq=250000,
-            model_save_path=str(args.log_dir / args.env_id / "checkpoints"),
+            model_save_freq=0,
+            verbose=2,
+        ),
+        WandbCheckpointCallback(
+            save_freq=max(args.checkpoint_freq // args.n_envs, 1),
+            save_path=str(checkpoint_dir),
+            name_prefix="model",
             verbose=2,
         ),
         VideoRecordingCallback(
             env_id=args.env_id,
-            record_freq=250000,
+            record_freq=args.checkpoint_freq,
             n_episodes=1,
             verbose=2,
         ),
@@ -234,7 +293,10 @@ def init_wandb(args: argparse.Namespace) -> tuple[Any, list[BaseCallback]]:
 def resolve_save_path(args: argparse.Namespace) -> Path:
     if args.save_path:
         return args.save_path
-    default = args.log_dir / args.env_id / f"{args.algo}_latest.zip"
+    run_name = (
+        f"{args.algo}-seed{args.seed}-n_envs{args.n_envs}-{args.total_timesteps}steps"
+    )
+    default = args.log_dir / args.env_id / run_name / f"{args.algo}_latest.zip"
     default.parent.mkdir(parents=True, exist_ok=True)
     return default
 
@@ -262,6 +324,12 @@ def main() -> None:
         save_model(model, save_path)
         env.close()
         if run is not None:
+            if wandb is not None:
+                wandb.save(
+                    str(save_path),
+                    base_path=str(save_path.parent),
+                    policy="now",
+                )
             run.finish()
 
 
