@@ -244,9 +244,9 @@ def init_wandb(args: argparse.Namespace) -> tuple[Any, list[BaseCallback]]:
         raise RuntimeError(msg)
     run = wandb.init(
         project="hri-playground",
-        name=f"{args.algo}-{args.env_id}-seed{args.seed}-n_envs{args.n_envs}-{args.total_timesteps}steps",
+        name=f"{args.algo}-{args.env_id}",
         group=args.env_id,
-        tags=[args.algo, f"seed{args.seed}", f"n_envs{args.n_envs}"],
+        tags=[f"seed{args.seed}", f"n_envs{args.n_envs}",f"{args.total_timesteps}steps"],
         config={
             "env_id": args.env_id,
             "algo": args.algo,
@@ -261,11 +261,11 @@ def init_wandb(args: argparse.Namespace) -> tuple[Any, list[BaseCallback]]:
     wandb.define_metric("global_step")
     wandb.define_metric("*", step_metric="global_step")
 
-    # Create unique run folder: models/{env_id}/{algo}-seed{seed}-n_envs{n_envs}-{timesteps}steps/
+    # Create unique run folder: models/{env_id}/{algo}/seed{seed}-n_envs{n_envs}-{timesteps}steps/
     run_name = (
-        f"{args.algo}-seed{args.seed}-n_envs{args.n_envs}-{args.total_timesteps}steps"
+        f"seed{args.seed}-n_envs{args.n_envs}-{args.total_timesteps}steps"
     )
-    run_dir = args.log_dir / args.env_id / run_name
+    run_dir = args.log_dir / args.env_id / args.algo / run_name
     checkpoint_dir = run_dir / "checkpoints"
 
     callbacks = [
