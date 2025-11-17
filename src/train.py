@@ -131,7 +131,9 @@ class WandbCheckpointCallback(CheckpointCallback):
 
                 wandb_checkpoint_dir = Path(wandb.run.dir) / "checkpoints"
                 wandb_checkpoint_dir.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(checkpoint_path, wandb_checkpoint_dir / checkpoint_path.name)
+                shutil.copy2(
+                    checkpoint_path, wandb_checkpoint_dir / checkpoint_path.name
+                )
                 self.last_uploaded_timestep = self.num_timesteps
             else:
                 print(f"Warning: Expected checkpoint not found: {checkpoint_path}")
@@ -247,7 +249,11 @@ def init_wandb(args: argparse.Namespace) -> tuple[Any, list[BaseCallback]]:
         project="hri-playground",
         name=f"{args.algo}-{args.env_id}",
         group=args.env_id,
-        tags=[f"seed{args.seed}", f"n_envs{args.n_envs}",f"{args.total_timesteps}steps"],
+        tags=[
+            f"seed{args.seed}",
+            f"n_envs{args.n_envs}",
+            f"{args.total_timesteps}steps",
+        ],
         config={
             "env_id": args.env_id,
             "algo": args.algo,
@@ -263,9 +269,7 @@ def init_wandb(args: argparse.Namespace) -> tuple[Any, list[BaseCallback]]:
     wandb.define_metric("*", step_metric="global_step")
 
     # Create unique run folder: models/{env_id}/{algo}/seed{seed}-n_envs{n_envs}-{timesteps}steps/
-    run_name = (
-        f"seed{args.seed}-n_envs{args.n_envs}-{args.total_timesteps}steps"
-    )
+    run_name = f"seed{args.seed}-n_envs{args.n_envs}-{args.total_timesteps}steps"
     run_dir = args.log_dir / args.env_id / args.algo / run_name
     checkpoint_dir = run_dir / "checkpoints"
 
@@ -294,10 +298,10 @@ def init_wandb(args: argparse.Namespace) -> tuple[Any, list[BaseCallback]]:
 def resolve_save_path(args: argparse.Namespace) -> Path:
     if args.save_path:
         return args.save_path
-    run_name = (
-        f"seed{args.seed}-n_envs{args.n_envs}-{args.total_timesteps}steps"
+    run_name = f"seed{args.seed}-n_envs{args.n_envs}-{args.total_timesteps}steps"
+    default = (
+        args.log_dir / args.env_id / args.algo / run_name / f"{args.algo}_latest.zip"
     )
-    default = args.log_dir / args.env_id / args.algo / run_name / f"{args.algo}_latest.zip"
     default.parent.mkdir(parents=True, exist_ok=True)
     return default
 
@@ -325,7 +329,7 @@ def main() -> None:
         save_model(model, save_path)
         env.close()
         if run is not None:
-            if wandb is not None:
+            if wandb is not None and wandb.run is not None:
                 # Copy to wandb dir instead of using wandb.save() for Windows compatibility
                 import shutil
 
