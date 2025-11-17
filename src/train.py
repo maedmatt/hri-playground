@@ -126,7 +126,12 @@ class WandbCheckpointCallback(CheckpointCallback):
             if checkpoint_path.exists():
                 if self.verbose >= 1:
                     print(f"Uploading checkpoint to wandb: {checkpoint_path.name}")
-                wandb.save(str(checkpoint_path), policy="now")
+                # Copy to wandb dir instead of using wandb.save() for Windows compatibility
+                import shutil
+
+                wandb_checkpoint_dir = Path(wandb.run.dir) / "checkpoints"
+                wandb_checkpoint_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(checkpoint_path, wandb_checkpoint_dir / checkpoint_path.name)
                 self.last_uploaded_timestep = self.num_timesteps
             else:
                 print(f"Warning: Expected checkpoint not found: {checkpoint_path}")
@@ -321,7 +326,10 @@ def main() -> None:
         env.close()
         if run is not None:
             if wandb is not None:
-                wandb.save(str(save_path), policy="now")
+                # Copy to wandb dir instead of using wandb.save() for Windows compatibility
+                import shutil
+
+                shutil.copy2(save_path, Path(wandb.run.dir) / save_path.name)
             run.finish()
 
 
