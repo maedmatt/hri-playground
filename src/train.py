@@ -126,11 +126,7 @@ class WandbCheckpointCallback(CheckpointCallback):
             if checkpoint_path.exists():
                 if self.verbose >= 1:
                     print(f"Uploading checkpoint to wandb: {checkpoint_path.name}")
-                wandb.save(
-                    str(checkpoint_path),
-                    base_path=str(Path(self.save_path).parent),
-                    policy="now",
-                )
+                wandb.save(str(checkpoint_path), policy="now")
                 self.last_uploaded_timestep = self.num_timesteps
             else:
                 print(f"Warning: Expected checkpoint not found: {checkpoint_path}")
@@ -294,9 +290,9 @@ def resolve_save_path(args: argparse.Namespace) -> Path:
     if args.save_path:
         return args.save_path
     run_name = (
-        f"{args.algo}-seed{args.seed}-n_envs{args.n_envs}-{args.total_timesteps}steps"
+        f"seed{args.seed}-n_envs{args.n_envs}-{args.total_timesteps}steps"
     )
-    default = args.log_dir / args.env_id / run_name / f"{args.algo}_latest.zip"
+    default = args.log_dir / args.env_id / args.algo / run_name / f"{args.algo}_latest.zip"
     default.parent.mkdir(parents=True, exist_ok=True)
     return default
 
@@ -325,11 +321,7 @@ def main() -> None:
         env.close()
         if run is not None:
             if wandb is not None:
-                wandb.save(
-                    str(save_path),
-                    base_path=str(save_path.parent),
-                    policy="now",
-                )
+                wandb.save(str(save_path), policy="now")
             run.finish()
 
 
