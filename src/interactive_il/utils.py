@@ -6,7 +6,7 @@ from typing import Protocol
 import numpy as np
 import torch
 
-from interactive_il.behavioral_cloning import BCPolicy
+from interactive_il.policy import BCPolicy
 
 
 class PredictablePolicy(Protocol):
