@@ -181,12 +181,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--save-path",
         type=Path,
-        help="Where to store the trained policy. Defaults to models/<env>/<algo>.zip.",
+        help=(
+            "Where to store the trained policy. Defaults to "
+            "models/SB3/<env>/<algo>/<run>/<algo>_latest.zip."
+        ),
     )
     parser.add_argument(
         "--log-dir",
         type=Path,
-        default=Path("models"),
+        default=Path("models/SB3"),
         help="Base directory for checkpoints when --save-path is not provided.",
     )
     parser.add_argument(
@@ -265,7 +268,7 @@ def init_wandb(args: argparse.Namespace) -> tuple[Any, list[BaseCallback]]:
     wandb.define_metric("global_step")
     wandb.define_metric("*", step_metric="global_step")
 
-    # Create unique run folder: models/{env_id}/{algo}/seed{seed}-n_envs{n_envs}-{timesteps}steps/
+    # Create unique run folder: <log_dir>/{env_id}/{algo}/seed{seed}-n_envs{n_envs}-{timesteps}steps/
     run_name = f"seed{args.seed}-n_envs{args.n_envs}-{args.total_timesteps}steps"
     run_dir = args.log_dir / args.env_id / args.algo / run_name
     checkpoint_dir = run_dir / "checkpoints"
