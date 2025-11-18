@@ -1,8 +1,12 @@
 """
-Small RL training helper around Stable-Baselines3
+Training script for SB3 (PPO/SAC/TD3/A2C) and Behavioral Cloning
 
 Example:
-    uv run python src/train.py --env-id Humanoid-v5 --total-timesteps 500000 --n-envs 8 --wandb
+    SB3 training:
+        uv run python src/train.py --env-id Humanoid-v5 --total-timesteps 500000 --n-envs 8 --wandb
+
+    BC training:
+        uv run python src/train.py --algo bc --env-id Walker2d-v5 --demos-path models/interactive_il/walker2d_demos.pkl --total-timesteps 100 --wandb
 """
 
 from __future__ import annotations
@@ -24,6 +28,8 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from stable_baselines3.common.vec_env.base_vec_env import VecEnv
 
+from interactive_il.bc_trainer import train_bc
+
 try:  # pragma: no cover - wandb is optional at runtime
     from wandb.integration.sb3 import WandbCallback
 
@@ -35,12 +41,13 @@ except ModuleNotFoundError:  # pragma: no cover
 
 EnvFactory = Callable[[], Env[Any, Any]]
 
-ALGORITHMS: dict[str, type[BaseAlgorithm]] = {
+SB3_ALGORITHMS: dict[str, type[BaseAlgorithm]] = {
     "ppo": PPO,
     "a2c": A2C,
     "sac": SAC,
     "td3": TD3,
 }
+ALGORITHMS = tuple(sorted(tuple(SB3_ALGORITHMS) + ("bc",)))
 
 
 class VideoRecordingCallback(BaseCallback):
@@ -138,7 +145,9 @@ class WandbCheckpointCallback(CheckpointCallback):
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Train a Gymnasium agent with SB3.")
+    parser = argparse.ArgumentParser(
+        description="Train a Gymnasium agent with SB3 or BC."
+    )
     parser.add_argument(
         "--env-id", type=str, default="Humanoid-v5", help="Gymnasium env id."
     )
@@ -146,8 +155,13 @@ def parse_args() -> argparse.Namespace:
         "--algo",
         type=str,
         default="ppo",
-        choices=sorted(ALGORITHMS),
-        help="Which Stable-Baselines3 algorithm to use.",
+        choices=ALGORITHMS,
+        help="Which algorithm to use (SB3: ppo/a2c/sac/td3, IL: bc).",
+    )
+    parser.add_argument(
+        "--demos-path",
+        type=Path,
+        help="Path to demonstrations pickle file (required for BC).",
     )
     parser.add_argument(
         "--policy", type=str, default="MlpPolicy", help="Policy class for SB3."
@@ -229,7 +243,7 @@ def build_env(env_id: str, seed: int, render_mode: str, n_envs: int) -> VecEnv:
 def build_algorithm(
     args: argparse.Namespace, env: VecEnv, log_dir: Path
 ) -> BaseAlgorithm:
-    algo_cls = ALGORITHMS[args.algo]
+    algo_cls = SB3_ALGORITHMS[args.algo]
     return algo_cls(  # pyright: ignore[reportCallIssue]
         args.policy,
         env,
@@ -311,8 +325,38 @@ def save_model(model: BaseAlgorithm, path: Path) -> None:
     model.save(str(path))
 
 
-def main() -> None:
-    args = parse_args()
+def train_bc_main(args: argparse.Namespace) -> None:
+    """Train BC policy."""
+    if args.demos_path is None:
+        msg = "--demos-path is required for BC training"
+        raise ValueError(msg)
+
+    # Determine save path (similar to SB3 structure)
+    if args.save_path:
+        save_path = args.save_path
+    else:
+        # Use models/interactive_il/<env-id>/seed<N>-<epochs>epochs/bc_policy.pth
+        run_name = f"seed{args.seed}-{args.total_timesteps}epochs"
+        save_path = (
+            Path("models/interactive_il") / args.env_id / run_name / "bc_policy.pth"
+        )
+
+    train_bc(
+        env_id=args.env_id,
+        demos_path=args.demos_path,
+        save_path=save_path,
+        n_epochs=args.total_timesteps,
+        batch_size=1024,
+        lr=3e-4,
+        use_norm=True,
+        seed=args.seed,
+        use_wandb=args.wandb,
+        wandb_project="hri-playground",
+    )
+
+
+def train_sb3_main(args: argparse.Namespace) -> None:
+    """Train SB3 policy (PPO/SAC/etc)."""
     tensorboard_log = args.tensorboard_log
     tensorboard_log.mkdir(parents=True, exist_ok=True)
     env = build_env(args.env_id, args.seed, args.render_mode, args.n_envs)
@@ -336,6 +380,15 @@ def main() -> None:
                     policy="now",
                 )
             run.finish()
+
+
+def main() -> None:
+    args = parse_args()
+
+    if args.algo == "bc":
+        train_bc_main(args)
+    else:
+        train_sb3_main(args)
 
 
 if __name__ == "__main__":

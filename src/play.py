@@ -1,9 +1,12 @@
 """
-Play a trained policy on a Gymnasium environment
+Play a trained policy on a Gymnasium environment (SB3 or BC)
 
 Example:
-    uv run src/play.py --model-path models/SB3/Humanoid-v5/ppo/ppo_latest.zip --env-id Humanoid-v5 --algo ppo
-    uv run src/play.py --model-path models/interactive_il/walker2d_child_policy.pth --env-id Walker2d-v5 --algo bc
+    SB3 policy:
+        uv run src/play.py --model-path models/SB3/Humanoid-v5/ppo/ppo_latest.zip --env-id Humanoid-v5 --algo ppo
+
+    BC policy:
+        uv run src/play.py --model-path models/interactive_il/Walker2d-v5/seed42-100epochs/bc_policy.pth --env-id Walker2d-v5 --algo bc
 """
 
 from __future__ import annotations
