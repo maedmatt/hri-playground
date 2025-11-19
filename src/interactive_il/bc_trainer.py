@@ -13,7 +13,7 @@ import torch.optim as optim
 from gymnasium.spaces import Box
 from tqdm import trange
 
-from interactive_il.policy import BCPolicy
+from interactive_il.policy import BCPolicy, resolve_device
 
 try:
     import wandb
@@ -80,6 +80,7 @@ def train_bc(
     """
     torch.manual_seed(seed)
     np.random.seed(seed)
+    device = resolve_device(device)
 
     # Initialize wandb
     if use_wandb:

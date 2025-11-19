@@ -6,7 +6,7 @@ from typing import Protocol
 import numpy as np
 import torch
 
-from interactive_il.policy import BCPolicy
+from interactive_il.policy import BCPolicy, resolve_device
 
 
 class PredictablePolicy(Protocol):
@@ -53,6 +53,7 @@ def load_torch_policy(
         msg = f"Policy checkpoint not found at {model_path}"
         raise FileNotFoundError(msg)
 
+    device = resolve_device(device)
     checkpoint = torch.load(model_path, map_location=device, weights_only=False)
     state_dict = checkpoint["state_dict"]
     obs_mean = checkpoint.get("mean")

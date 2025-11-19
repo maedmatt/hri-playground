@@ -7,6 +7,22 @@ import torch
 import torch.nn as nn
 
 
+def resolve_device(device: str) -> str:
+    """
+    Resolve device string to actual PyTorch device.
+
+    Converts "auto" to "cuda" if available, "mps" if on Mac with MPS, else "cpu".
+    """
+    if device == "auto":
+        if torch.cuda.is_available():
+            return "cuda"
+        elif torch.backends.mps.is_available():
+            return "mps"
+        else:
+            return "cpu"
+    return device
+
+
 class BCPolicy(nn.Module):
     """
     Behavioral Cloning policy network.
@@ -23,14 +39,14 @@ class BCPolicy(nn.Module):
         device: str = "auto",
     ) -> None:
         super().__init__()
-        self.device = device
+        self.device = resolve_device(device)
         layers: list[nn.Module] = []
         d = obs_dim
         for h in hidden:
             layers += [nn.Linear(d, h), nn.ReLU()]
             d = h
         layers += [nn.Linear(d, act_dim), nn.Tanh()]
-        self.net = nn.Sequential(*layers).to(device)
+        self.net = nn.Sequential(*layers).to(self.device)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x)
