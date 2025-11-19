@@ -1,5 +1,5 @@
 """
-Training script for SB3 (PPO/SAC/TD3/A2C) and Behavioral Cloning
+Training script for SB3 (PPO/SAC/TD3/A2C), Behavioral Cloning, and DAgger
 
 Example:
     SB3 training:
@@ -7,6 +7,9 @@ Example:
 
     BC training:
         uv run python src/train.py --algo bc --env-id Walker2d-v5 --demos-path models/interactive_il/walker2d_demos.pkl --total-timesteps 100 --wandb
+
+    DAgger training:
+        uv run python src/train.py --algo dagger --env-id Walker2d-v5 --expert-path expert.zip --n-iterations 20 --wandb
 """
 
 from __future__ import annotations
@@ -29,6 +32,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from stable_baselines3.common.vec_env.base_vec_env import VecEnv
 
 from interactive_il.bc_trainer import train_bc
+from interactive_il.dagger_trainer import train_dagger
 
 try:  # pragma: no cover - wandb is optional at runtime
     from wandb.integration.sb3 import WandbCallback
@@ -47,7 +51,7 @@ SB3_ALGORITHMS: dict[str, type[BaseAlgorithm]] = {
     "sac": SAC,
     "td3": TD3,
 }
-ALGORITHMS = tuple(sorted(tuple(SB3_ALGORITHMS) + ("bc",)))
+ALGORITHMS = tuple(sorted(tuple(SB3_ALGORITHMS) + ("bc", "dagger")))
 
 
 class VideoRecordingCallback(BaseCallback):
@@ -156,12 +160,33 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default="ppo",
         choices=ALGORITHMS,
-        help="Which algorithm to use (SB3: ppo/a2c/sac/td3, IL: bc).",
+        help="Which algorithm to use (SB3: ppo/a2c/sac/td3, IL: bc/dagger).",
     )
     parser.add_argument(
         "--demos-path",
         type=Path,
         help="Path to demonstrations pickle file (required for BC).",
+    )
+    parser.add_argument(
+        "--expert-path",
+        type=Path,
+        help="Path to expert policy checkpoint (required for DAgger).",
+    )
+    parser.add_argument(
+        "--bc-init-path",
+        type=Path,
+        help="Path to BC checkpoint for DAgger initialization (optional).",
+    )
+    parser.add_argument(
+        "--n-iterations",
+        type=int,
+        default=20,
+        help="Number of DAgger iterations.",
+    )
+    parser.add_argument(
+        "--use-replay",
+        action="store_true",
+        help="Use replay buffer for DAgger (DAgger+Replay variant).",
     )
     parser.add_argument(
         "--policy", type=str, default="MlpPolicy", help="Policy class for SB3."
@@ -355,6 +380,45 @@ def train_bc_main(args: argparse.Namespace) -> None:
     )
 
 
+def train_dagger_main(args: argparse.Namespace) -> None:
+    """Train DAgger policy."""
+    if args.expert_path is None:
+        msg = "--expert-path is required for DAgger training"
+        raise ValueError(msg)
+
+    # Determine save path (similar to BC structure)
+    if args.save_path:
+        save_path = args.save_path
+    else:
+        algo_name = "dagger-replay" if args.use_replay else "dagger"
+        run_name = f"seed{args.seed}-{args.n_iterations}iters"
+        save_path = (
+            Path("models/interactive_il")
+            / args.env_id
+            / run_name
+            / f"{algo_name}_policy.pth"
+        )
+
+    train_dagger(
+        env_id=args.env_id,
+        expert_path=args.expert_path,
+        save_path=save_path,
+        bc_init_path=args.bc_init_path,
+        n_iterations=args.n_iterations,
+        n_traj_per_iter=10,
+        n_epochs=4,
+        batch_size=256,
+        lr=1e-3,
+        use_norm=True,
+        use_replay=args.use_replay,
+        buffer_size=200000,
+        beta_decay=0.95,
+        seed=args.seed,
+        use_wandb=args.wandb,
+        wandb_project="hri-playground",
+    )
+
+
 def train_sb3_main(args: argparse.Namespace) -> None:
     """Train SB3 policy (PPO/SAC/etc)."""
     tensorboard_log = args.tensorboard_log
@@ -387,6 +451,8 @@ def main() -> None:
 
     if args.algo == "bc":
         train_bc_main(args)
+    elif args.algo == "dagger":
+        train_dagger_main(args)
     else:
         train_sb3_main(args)
 
