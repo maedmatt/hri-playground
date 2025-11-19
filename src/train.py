@@ -202,7 +202,7 @@ def parse_args() -> argparse.Namespace:
         help="Number of parallel environments for vectorized training.",
     )
     parser.add_argument(
-        "--device", type=str, default="auto", help="PyTorch device argument."
+        "--device", type=str, default="cpu", help="PyTorch device argument."
     )
     parser.add_argument(
         "--render-mode",
