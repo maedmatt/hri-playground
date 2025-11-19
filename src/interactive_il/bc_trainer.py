@@ -53,6 +53,7 @@ def train_bc(
     lr: float = 3e-4,
     use_norm: bool = True,
     seed: int = 42,
+    device: str = "auto",
     use_wandb: bool = False,
     wandb_project: str = "hri-playground",
     wandb_name: str | None = None,
@@ -69,6 +70,7 @@ def train_bc(
         lr: Learning rate
         use_norm: Whether to normalize observations
         seed: Random seed
+        device: PyTorch device (cpu, cuda, auto)
         use_wandb: Enable Weights & Biases logging
         wandb_project: W&B project name
         wandb_name: W&B run name (defaults to "bc-{env_id}")
@@ -123,7 +125,7 @@ def train_bc(
     env.close()
 
     # Create policy and optimizer
-    policy = BCPolicy(obs_dim, act_dim)
+    policy = BCPolicy(obs_dim, act_dim, device=device)
     optimizer = optim.Adam(policy.parameters(), lr=lr)
     loss_fn = nn.MSELoss()
 
@@ -140,6 +142,8 @@ def train_bc(
     for epoch in trange(1, n_epochs + 1, desc="Training BC"):
         epoch_loss = 0.0
         for obs_batch, act_batch in loader:
+            obs_batch = obs_batch.to(device)
+            act_batch = act_batch.to(device)
             optimizer.zero_grad()
             pred = policy(obs_batch)
             loss = loss_fn(pred, act_batch)

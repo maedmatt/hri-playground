@@ -20,7 +20,7 @@ except ModuleNotFoundError:
     wandb = None  # type: ignore[assignment]
 
 
-def load_expert(expert_path: Path):
+def load_expert(expert_path: Path, device: str = "auto"):
     """Load expert policy from SB3 checkpoint."""
     from stable_baselines3 import A2C, PPO, SAC, TD3
 
@@ -28,7 +28,7 @@ def load_expert(expert_path: Path):
 
     for algo_name, algo_cls in ALGOS.items():
         try:
-            model = algo_cls.load(str(expert_path), device="cpu")
+            model = algo_cls.load(str(expert_path), device=device)
             print(f"Loaded expert ({algo_name}) from {expert_path}")
             return model
         except Exception:
@@ -82,6 +82,7 @@ def train_dagger(
     buffer_size: int = 200000,
     beta_decay: float = 0.95,
     seed: int = 42,
+    device: str = "auto",
     use_wandb: bool = False,
     wandb_project: str = "hri-playground",
     wandb_name: str | None = None,
@@ -104,6 +105,7 @@ def train_dagger(
         buffer_size: Replay buffer size (only if use_replay=True)
         beta_decay: Beta decay rate (beta = beta_decay^iteration)
         seed: Random seed
+        device: PyTorch device (cpu, cuda, auto)
         use_wandb: Enable Weights & Biases logging
         wandb_project: W&B project name
         wandb_name: W&B run name (defaults to "dagger-{env_id}")
@@ -142,7 +144,7 @@ def train_dagger(
         )
 
     # Load expert
-    expert = load_expert(expert_path)
+    expert = load_expert(expert_path, device=device)
 
     # Create environment and get dimensions
     env = gym.make(env_id)
@@ -155,13 +157,13 @@ def train_dagger(
     act_dim = env.action_space.shape[0]
 
     # Initialize policy
-    policy = BCPolicy(obs_dim, act_dim)
+    policy = BCPolicy(obs_dim, act_dim, device=device)
 
     # Load BC initialization if provided
     obs_mean: np.ndarray | None = None
     obs_std: np.ndarray | None = None
     if bc_init_path is not None and bc_init_path.exists():
-        checkpoint = torch.load(bc_init_path, map_location="cpu", weights_only=False)
+        checkpoint = torch.load(bc_init_path, map_location=device, weights_only=False)
         policy.load_state_dict(checkpoint["state_dict"])
         if use_norm:
             obs_mean = checkpoint.get("mean")
@@ -247,6 +249,8 @@ def train_dagger(
         for _ in range(n_epochs):
             epoch_loss = 0.0
             for obs_batch, label_batch in loader:
+                obs_batch = obs_batch.to(device)
+                label_batch = label_batch.to(device)
                 optimizer.zero_grad()
                 pred = policy(obs_batch)
                 loss = loss_fn(pred, label_batch)

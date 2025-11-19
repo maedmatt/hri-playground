@@ -46,20 +46,20 @@ def is_torch_checkpoint(model_path: Path) -> bool:
 
 
 def load_torch_policy(
-    model_path: Path, obs_dim: int, act_dim: int
+    model_path: Path, obs_dim: int, act_dim: int, device: str = "auto"
 ) -> TorchPolicyAdapter:
     """Load a BC/DAgger checkpoint stored as a Torch .pth file."""
     if not model_path.exists():
         msg = f"Policy checkpoint not found at {model_path}"
         raise FileNotFoundError(msg)
 
-    checkpoint = torch.load(model_path, map_location="cpu", weights_only=False)
+    checkpoint = torch.load(model_path, map_location=device, weights_only=False)
     state_dict = checkpoint["state_dict"]
     obs_mean = checkpoint.get("mean")
     obs_std = checkpoint.get("std")
     use_norm = bool(checkpoint.get("use_norm", False))
 
-    policy = BCPolicy(obs_dim, act_dim)
+    policy = BCPolicy(obs_dim, act_dim, device=device)
     policy.load_state_dict(state_dict)
     policy.eval()
 

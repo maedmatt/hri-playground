@@ -375,6 +375,7 @@ def train_bc_main(args: argparse.Namespace) -> None:
         lr=3e-4,
         use_norm=True,
         seed=args.seed,
+        device=args.device,
         use_wandb=args.wandb,
         wandb_project="hri-playground",
     )
@@ -414,6 +415,7 @@ def train_dagger_main(args: argparse.Namespace) -> None:
         buffer_size=200000,
         beta_decay=0.95,
         seed=args.seed,
+        device=args.device,
         use_wandb=args.wandb,
         wandb_project="hri-playground",
     )

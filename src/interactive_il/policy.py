@@ -16,16 +16,21 @@ class BCPolicy(nn.Module):
     """
 
     def __init__(
-        self, obs_dim: int, act_dim: int, hidden: tuple[int, ...] = (256, 256)
+        self,
+        obs_dim: int,
+        act_dim: int,
+        hidden: tuple[int, ...] = (256, 256),
+        device: str = "auto",
     ) -> None:
         super().__init__()
+        self.device = device
         layers: list[nn.Module] = []
         d = obs_dim
         for h in hidden:
             layers += [nn.Linear(d, h), nn.ReLU()]
             d = h
         layers += [nn.Linear(d, act_dim), nn.Tanh()]
-        self.net = nn.Sequential(*layers)
+        self.net = nn.Sequential(*layers).to(device)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x)
@@ -33,7 +38,7 @@ class BCPolicy(nn.Module):
     @torch.no_grad()
     def predict(self, obs_np: np.ndarray) -> np.ndarray:
         """Deterministic inference from numpy observation."""
-        x = torch.as_tensor(obs_np, dtype=torch.float32)
+        x = torch.as_tensor(obs_np, dtype=torch.float32, device=self.device)
         if x.ndim == 1:
             x = x.unsqueeze(0)
         a = self.net(x).cpu().numpy()
