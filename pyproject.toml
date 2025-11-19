@@ -1,10 +1,11 @@
 # ---- Project Info and Dependencies ----
-
 [project]
 name = "hri-playground"
 description = "Human-Robot Interaction developed by ABC group for the Social Robotics Final 2025"
 authors = [
-    { name="maedmatt", email="matteo.calabria01@gmail.com" },
+    { name="Matteo Calabria", email="matteo.calabria01@gmail.com" },
+    { name="Giulia Benintendi", email="giulbenintendi@gmail.com" },
+    { name="Stefano Abondio", email="stefano.abondio@gmail.com" },
 ]
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
