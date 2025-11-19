@@ -18,27 +18,34 @@ def test_dagger_trainer_pure():
     from interactive_il.dagger_trainer import train_dagger
 
     expert_path = download_walker2d_expert()
+    policy_path = Path("models/interactive_il/test_dagger_pure.pth")
 
-    result = train_dagger(
-        env_id="Walker2d-v5",
-        expert_path=expert_path,
-        save_path=Path("models/interactive_il/test_dagger_pure.pth"),
-        bc_init_path=None,
-        n_iterations=2,
-        n_traj_per_iter=3,
-        n_epochs=2,
-        batch_size=256,
-        lr=1e-3,
-        use_norm=False,
-        use_replay=False,
-        seed=42,
-        use_wandb=False,
-    )
+    try:
+        result = train_dagger(
+            env_id="Walker2d-v5",
+            expert_path=expert_path,
+            save_path=policy_path,
+            bc_init_path=None,
+            n_iterations=2,
+            n_traj_per_iter=3,
+            n_epochs=2,
+            batch_size=256,
+            lr=1e-3,
+            use_norm=False,
+            use_replay=False,
+            seed=42,
+            use_wandb=False,
+        )
 
-    assert "iteration_rewards" in result
-    assert "final_reward" in result
-    assert len(result["iteration_rewards"]) == 2
-    assert Path("models/interactive_il/test_dagger_pure.pth").exists()
+        assert "iteration_rewards" in result
+        assert "final_reward" in result
+        assert len(result["iteration_rewards"]) == 2
+        assert policy_path.exists()
+
+    finally:
+        # Cleanup test artifacts
+        if policy_path.exists():
+            policy_path.unlink()
 
 
 def test_dagger_trainer_replay():
@@ -46,28 +53,35 @@ def test_dagger_trainer_replay():
     from interactive_il.dagger_trainer import train_dagger
 
     expert_path = download_walker2d_expert()
+    policy_path = Path("models/interactive_il/test_dagger_replay.pth")
 
-    result = train_dagger(
-        env_id="Walker2d-v5",
-        expert_path=expert_path,
-        save_path=Path("models/interactive_il/test_dagger_replay.pth"),
-        bc_init_path=None,
-        n_iterations=2,
-        n_traj_per_iter=3,
-        n_epochs=2,
-        batch_size=256,
-        lr=1e-3,
-        use_norm=False,
-        use_replay=True,
-        buffer_size=1000,
-        seed=42,
-        use_wandb=False,
-    )
+    try:
+        result = train_dagger(
+            env_id="Walker2d-v5",
+            expert_path=expert_path,
+            save_path=policy_path,
+            bc_init_path=None,
+            n_iterations=2,
+            n_traj_per_iter=3,
+            n_epochs=2,
+            batch_size=256,
+            lr=1e-3,
+            use_norm=False,
+            use_replay=True,
+            buffer_size=1000,
+            seed=42,
+            use_wandb=False,
+        )
 
-    assert "iteration_rewards" in result
-    assert "final_reward" in result
-    assert len(result["iteration_rewards"]) == 2
-    assert Path("models/interactive_il/test_dagger_replay.pth").exists()
+        assert "iteration_rewards" in result
+        assert "final_reward" in result
+        assert len(result["iteration_rewards"]) == 2
+        assert policy_path.exists()
+
+    finally:
+        # Cleanup test artifacts
+        if policy_path.exists():
+            policy_path.unlink()
 
 
 if __name__ == "__main__":
