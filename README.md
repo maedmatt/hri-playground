@@ -4,6 +4,8 @@ Imitation Learning experiments for Social Robotics Final 2025.
 
 **Authors**: Matteo Calabria, Giulia Benintendi, Stefano Abondio
 
+<img width="1029" height="454" alt="wandb" src="https://github.com/user-attachments/assets/9cbb1b68-8e2a-4cdd-a0d1-c7a8b5605fd4" />
+
 This project implements Behavioral Cloning and DAgger alongside standard RL baselines (PPO, SAC, TD3, A2C) using Gymnasium environments.
 
 ## Installation
