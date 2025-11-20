@@ -3,7 +3,7 @@ Collect expert demonstrations from a trained policy.
 
 Example:
     Collect 30 demos from Walker2d expert:
-        uv run src/collect_demonstrations.py --env-id Walker2d-v5 --expert-path models/SB3/Walker2d-v5/hf/walker2d-v5-SAC-medium.zip --n-episodes 30
+        uv run src/collect_demonstrations.py --env-id Walker2d-v5 --expert-path models/SB3/Walker2d-v5/huggingface/walker2d-v5-SAC-medium.zip --n-episodes 30
 
     Custom save path:
         uv run src/collect_demonstrations.py --env-id Walker2d-v5 --expert-path expert.zip --n-episodes 50 --save-path datasets/Walker2d-v5/my_demos.pkl
