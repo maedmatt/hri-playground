@@ -63,7 +63,7 @@ def download_model(
 
     # Save to standard location: models/SB3/<env-id>/hf/<name>
     save_name = save_name or filename
-    target_path = Path("models") / "SB3" / env_id / "hf" / save_name
+    target_path = Path("models") / "SB3" / env_id / "huggingface" / save_name
     target_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Copy to standard location
@@ -83,7 +83,6 @@ def main() -> None:
         save_name=args.save_name,
     )
 
-    print(f"\n✓ Model ready at: {target_path}")
     print("\nYou can now use it with:")
     print(
         f"  uv run src/train.py --algo dagger --env-id {args.env_id} --expert-path {target_path} --wandb"
