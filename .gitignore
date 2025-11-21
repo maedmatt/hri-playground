@@ -2,7 +2,7 @@
 CLAUDE.md
 AGENTS.md
 .DS_Store
-datasets/*
+datasets/
 
 # Additions to standard GitHub .gitignore:
 *.bak
