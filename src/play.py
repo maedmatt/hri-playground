@@ -38,7 +38,9 @@ SB3_ALGORITHMS: dict[str, type[BaseAlgorithm]] = {
     "sac": SAC,
     "td3": TD3,
 }
-ALGORITHM_CHOICES = tuple(sorted(tuple(SB3_ALGORITHMS) + ("bc", "dagger")))
+ALGORITHM_CHOICES = tuple(
+    sorted(tuple(SB3_ALGORITHMS) + ("bc", "dagger", "dagger-replay"))
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -54,7 +56,7 @@ def parse_args() -> argparse.Namespace:
         type=str,
         required=True,
         choices=ALGORITHM_CHOICES,
-        help="Algorithm: ppo/a2c/sac/td3 for .zip files, bc/dagger for .pth files",
+        help="Algorithm: ppo/a2c/sac/td3 for .zip files, bc/dagger/dagger-replay for .pth files",
     )
     parser.add_argument("--episodes", type=int, default=5)
     parser.add_argument("--max-steps", type=int, default=2_000)
@@ -84,8 +86,8 @@ def load_policy(model_path: Path, algo: str, env: Env) -> PredictablePolicy:
         raise FileNotFoundError(msg)
 
     if is_torch_checkpoint(model_path):
-        if algo not in ("bc", "dagger"):
-            msg = "Torch checkpoints (.pth) must be loaded with --algo bc or --algo dagger"
+        if algo not in ("bc", "dagger", "dagger-replay"):
+            msg = "Torch checkpoints (.pth) must be loaded with --algo bc/dagger/dagger-replay"
             raise ValueError(msg)
         if not isinstance(env.observation_space, Box) or not isinstance(
             env.action_space, Box

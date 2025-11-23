@@ -81,6 +81,7 @@ def train_dagger(
     use_replay: bool = False,
     buffer_size: int = 200000,
     beta_decay: float = 0.95,
+    n_critical_states: int = 10,
     seed: int = 42,
     device: str = "auto",
     use_wandb: bool = False,
@@ -104,6 +105,7 @@ def train_dagger(
         use_replay: Use replay buffer (DAgger+Replay) vs pure DAgger
         buffer_size: Replay buffer size (only if use_replay=True)
         beta_decay: Beta decay rate (beta = beta_decay^iteration)
+        n_critical_states: Number of highest-error states per trajectory to add to replay buffer
         seed: Random seed
         device: PyTorch device (cpu, cuda, auto)
         use_wandb: Enable Weights & Biases logging
@@ -140,6 +142,7 @@ def train_dagger(
                 "use_replay": use_replay,
                 "buffer_size": buffer_size if use_replay else None,
                 "beta_decay": beta_decay,
+                "n_critical_states": n_critical_states if use_replay else None,
                 "seed": seed,
             },
         )
@@ -198,69 +201,142 @@ def train_dagger(
             traj = collect_trajectory(env, policy, obs_mean, obs_std, max_steps=1000)
             trajs.append(traj)
 
-        # Process trajectories: query expert and apply beta-mixing
-        new_obs: list[np.ndarray] = []
-        new_labels: list[np.ndarray] = []
-
-        for traj in trajs:
-            for i in range(len(traj["action"])):
-                obs_raw = traj["observation"][i]
-
-                # Normalize observation for storage
-                if obs_mean is not None and obs_std is not None:
-                    obs_norm = (obs_raw - obs_mean) / obs_std
-                else:
-                    obs_norm = obs_raw
-
-                # Beta-mixing: with probability beta, use expert action
-                if np.random.random() < beta:
-                    expert_action, _ = expert.predict(obs_raw, deterministic=True)
-                    label = expert_action
-                else:
-                    label = traj["action"][i]
-
-                new_obs.append(obs_norm)
-                new_labels.append(label)
-
-        # Add to dataset/buffer
+        # Process trajectories
         if use_replay:
-            replay_obs.extend(new_obs)
-            replay_labels.extend(new_labels)
-            # Keep only last buffer_size samples
+            # DAgger+Replay: collect D_new (beta-mixed) and D_crit (expert labels)
+            d_new_obs: list[np.ndarray] = []
+            d_new_labels: list[np.ndarray] = []
+            d_crit_obs: list[np.ndarray] = []
+            d_crit_labels: list[np.ndarray] = []
+
+            for traj in trajs:
+                traj_obs: list[np.ndarray] = []
+                traj_labels: list[np.ndarray] = []
+                traj_errors: list[float] = []
+
+                for i in range(len(traj["action"])):
+                    obs_raw = traj["observation"][i]
+                    policy_action = traj["action"][i]
+
+                    if obs_mean is not None and obs_std is not None:
+                        obs_norm = (obs_raw - obs_mean) / obs_std
+                    else:
+                        obs_norm = obs_raw
+
+                    # Query expert and compute error
+                    expert_action, _ = expert.predict(obs_raw, deterministic=True)
+                    error = float(np.sum((policy_action - expert_action) ** 2))
+
+                    # Beta-mixing for D_new
+                    if np.random.random() < beta:
+                        label = expert_action
+                    else:
+                        label = policy_action
+
+                    d_new_obs.append(obs_norm)
+                    d_new_labels.append(label)
+
+                    # Track for critical state selection
+                    traj_obs.append(obs_norm)
+                    traj_labels.append(expert_action)
+                    traj_errors.append(error)
+
+                # Select top-k highest-error states from trajectory
+                k = min(n_critical_states, len(traj_errors))
+                if k > 0:
+                    top_k_indices = np.argsort(traj_errors)[-k:]
+                    for idx in top_k_indices:
+                        d_crit_obs.append(traj_obs[idx])
+                        d_crit_labels.append(traj_labels[idx])
+
+            # Combine D_new with replay buffer for training
+            combined_obs = d_new_obs + replay_obs
+            combined_labels = d_new_labels + replay_labels
+
+            if len(combined_obs) > 0:
+                train_obs = np.array(combined_obs, dtype=np.float32)
+                train_labels = np.array(combined_labels, dtype=np.float32)
+                dataset = torch.utils.data.TensorDataset(
+                    torch.from_numpy(train_obs), torch.from_numpy(train_labels)
+                )
+                loader = torch.utils.data.DataLoader(
+                    dataset, batch_size=batch_size, shuffle=True, drop_last=True
+                )
+
+                combined_epoch_losses: list[float] = []
+                for _ in range(n_epochs):
+                    epoch_loss = 0.0
+                    for obs_batch, label_batch in loader:
+                        obs_batch = obs_batch.to(device)
+                        label_batch = label_batch.to(device)
+                        optimizer.zero_grad()
+                        pred = policy(obs_batch)
+                        loss = loss_fn(pred, label_batch)
+                        loss.backward()
+                        optimizer.step()
+                        epoch_loss += loss.item() * obs_batch.size(0)
+                    combined_epoch_losses.append(epoch_loss / len(dataset))
+                avg_loss = np.mean(combined_epoch_losses)
+            else:
+                avg_loss = 0.0
+
+            # Add D_crit to replay buffer for next iteration
+            replay_obs.extend(d_crit_obs)
+            replay_labels.extend(d_crit_labels)
             if len(replay_obs) > buffer_size:
                 replay_obs = replay_obs[-buffer_size:]
                 replay_labels = replay_labels[-buffer_size:]
-            train_obs = np.array(replay_obs, dtype=np.float32)
-            train_labels = np.array(replay_labels, dtype=np.float32)
         else:
+            # Pure DAgger: aggregate all data
+            new_obs: list[np.ndarray] = []
+            new_labels: list[np.ndarray] = []
+
+            for traj in trajs:
+                for i in range(len(traj["action"])):
+                    obs_raw = traj["observation"][i]
+
+                    if obs_mean is not None and obs_std is not None:
+                        obs_norm = (obs_raw - obs_mean) / obs_std
+                    else:
+                        obs_norm = obs_raw
+
+                    # Beta-mixing
+                    if np.random.random() < beta:
+                        expert_action, _ = expert.predict(obs_raw, deterministic=True)
+                        label = expert_action
+                    else:
+                        label = traj["action"][i]
+
+                    new_obs.append(obs_norm)
+                    new_labels.append(label)
+
             dataset_obs.extend(new_obs)
             dataset_labels.extend(new_labels)
             train_obs = np.array(dataset_obs, dtype=np.float32)
             train_labels = np.array(dataset_labels, dtype=np.float32)
 
-        # Training on aggregated data
-        dataset = torch.utils.data.TensorDataset(
-            torch.from_numpy(train_obs), torch.from_numpy(train_labels)
-        )
-        loader = torch.utils.data.DataLoader(
-            dataset, batch_size=batch_size, shuffle=True, drop_last=True
-        )
+            dataset = torch.utils.data.TensorDataset(
+                torch.from_numpy(train_obs), torch.from_numpy(train_labels)
+            )
+            loader = torch.utils.data.DataLoader(
+                dataset, batch_size=batch_size, shuffle=True, drop_last=True
+            )
 
-        epoch_losses: list[float] = []
-        for _ in range(n_epochs):
-            epoch_loss = 0.0
-            for obs_batch, label_batch in loader:
-                obs_batch = obs_batch.to(device)
-                label_batch = label_batch.to(device)
-                optimizer.zero_grad()
-                pred = policy(obs_batch)
-                loss = loss_fn(pred, label_batch)
-                loss.backward()
-                optimizer.step()
-                epoch_loss += loss.item() * obs_batch.size(0)
-            epoch_losses.append(epoch_loss / len(dataset))
+            epoch_losses: list[float] = []
+            for _ in range(n_epochs):
+                epoch_loss = 0.0
+                for obs_batch, label_batch in loader:
+                    obs_batch = obs_batch.to(device)
+                    label_batch = label_batch.to(device)
+                    optimizer.zero_grad()
+                    pred = policy(obs_batch)
+                    loss = loss_fn(pred, label_batch)
+                    loss.backward()
+                    optimizer.step()
+                    epoch_loss += loss.item() * obs_batch.size(0)
+                epoch_losses.append(epoch_loss / len(dataset))
 
-        avg_loss = np.mean(epoch_losses)
+            avg_loss = np.mean(epoch_losses)
 
         # Evaluate policy
         eval_trajs = [
@@ -274,16 +350,18 @@ def train_dagger(
 
         # Log to wandb
         if use_wandb and wandb is not None:
-            wandb.log(
-                {
-                    "iteration": iteration + 1,
-                    "beta": beta,
-                    "train/loss": avg_loss,
-                    "eval/mean_reward": mean_reward,
-                    "eval/std_reward": std_reward,
-                    "dataset_size": len(train_obs),
-                }
-            )
+            log_dict = {
+                "iteration": iteration + 1,
+                "beta": beta,
+                "train/loss": avg_loss,
+                "eval/mean_reward": mean_reward,
+                "eval/std_reward": std_reward,
+            }
+            if use_replay:
+                log_dict["replay_buffer_size"] = len(replay_obs)
+            else:
+                log_dict["dataset_size"] = len(train_obs)
+            wandb.log(log_dict)
 
     env.close()
 

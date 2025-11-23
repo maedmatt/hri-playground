@@ -6,10 +6,10 @@ Example:
         uv run python src/train.py --env-id Humanoid-v5 --total-timesteps 500000 --n-envs 8 --wandb
 
     BC training:
-        uv run python src/train.py --algo bc --env-id Walker2d-v5 --demos-path models/interactive_il/walker2d_demos.pkl --total-timesteps 100 --wandb
+        uv run python src/train.py --algo bc --env-id Walker2d-v5 --demos-path models/SB3/Walker2d-v5/huggingface/walker2d-v5-SAC-medium.zip --total-timesteps 30 --wandb
 
     DAgger training:
-        uv run python src/train.py --algo dagger --env-id Walker2d-v5 --expert-path expert.zip --n-iterations 20 --wandb
+        uv run python src/train.py --algo dagger-replay --env-id Walker2d-v5 --expert-path models/SB3/Walker2d-v5/huggingface/walker2d-v5-SAC-medium.zip --n-iterations 20 --wandb --bc-init-path models/interactive_il/Walker2d-v5/seed42-100epochs/bc_policy.pth
 """
 
 from __future__ import annotations
@@ -51,7 +51,7 @@ SB3_ALGORITHMS: dict[str, type[BaseAlgorithm]] = {
     "sac": SAC,
     "td3": TD3,
 }
-ALGORITHMS = tuple(sorted(tuple(SB3_ALGORITHMS) + ("bc", "dagger")))
+ALGORITHMS = tuple(sorted(tuple(SB3_ALGORITHMS) + ("bc", "dagger", "dagger-replay")))
 
 
 class VideoRecordingCallback(BaseCallback):
@@ -160,7 +160,7 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default="ppo",
         choices=ALGORITHMS,
-        help="Which algorithm to use (SB3: ppo/a2c/sac/td3, IL: bc/dagger).",
+        help="Which algorithm to use (SB3: ppo/a2c/sac/td3, IL: bc/dagger/dagger-replay).",
     )
     parser.add_argument(
         "--demos-path",
@@ -182,11 +182,6 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=20,
         help="Number of DAgger iterations.",
-    )
-    parser.add_argument(
-        "--use-replay",
-        action="store_true",
-        help="Use replay buffer for DAgger (DAgger+Replay variant).",
     )
     parser.add_argument(
         "--policy", type=str, default="MlpPolicy", help="Policy class for SB3."
@@ -387,17 +382,17 @@ def train_dagger_main(args: argparse.Namespace) -> None:
         msg = "--expert-path is required for DAgger training"
         raise ValueError(msg)
 
-    # Determine save path (similar to BC structure)
+    use_replay = args.algo == "dagger-replay"
+
     if args.save_path:
         save_path = args.save_path
     else:
-        algo_name = "dagger-replay" if args.use_replay else "dagger"
         run_name = f"seed{args.seed}-{args.n_iterations}iters"
         save_path = (
             Path("models/interactive_il")
             / args.env_id
             / run_name
-            / f"{algo_name}_policy.pth"
+            / f"{args.algo}_policy.pth"
         )
 
     train_dagger(
@@ -411,9 +406,10 @@ def train_dagger_main(args: argparse.Namespace) -> None:
         batch_size=256,
         lr=1e-3,
         use_norm=True,
-        use_replay=args.use_replay,
+        use_replay=use_replay,
         buffer_size=200000,
         beta_decay=0.95,
+        n_critical_states=10,
         seed=args.seed,
         device=args.device,
         use_wandb=args.wandb,
@@ -453,7 +449,7 @@ def main() -> None:
 
     if args.algo == "bc":
         train_bc_main(args)
-    elif args.algo == "dagger":
+    elif args.algo in ("dagger", "dagger-replay"):
         train_dagger_main(args)
     else:
         train_sb3_main(args)
