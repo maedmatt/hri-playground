@@ -25,6 +25,11 @@ from interactive_il.utils import (
     PredictablePolicy,
     is_torch_checkpoint,
     load_torch_policy,
+    make_bc_wandb_name,
+    make_bc_wandb_tags,
+    make_dagger_wandb_name,
+    make_dagger_wandb_tags,
+    parse_policy_filename,
 )
 
 try:
@@ -120,12 +125,34 @@ def init_wandb(
         msg = "wandb not installed. Install with: uv add wandb"
         raise ImportError(msg)
 
+    # Parse filename to get training params for consistent naming
+    parsed = parse_policy_filename(model_path.name)
+
+    if parsed and parsed["algo"] == "bc":
+        n_demos = int(parsed["n_demos"])
+        n_epochs = int(parsed["n_epochs"])
+        run_name = f"eval_{make_bc_wandb_name(n_demos)}"
+        tags = ["eval"] + make_bc_wandb_tags(seed, n_epochs, n_demos)
+    elif parsed and parsed["algo"] in ("dagger", "dagger-replay"):
+        n_iterations = int(parsed["n_iterations"])
+        use_replay = bool(parsed["use_replay"])
+        n_critical_states = int(parsed.get("n_critical_states", 0))
+        n_demos_str = str(parsed["n_demos"])
+        run_name = f"eval_{make_dagger_wandb_name(n_iterations, use_replay, n_critical_states)}"
+        tags = ["eval"] + make_dagger_wandb_tags(
+            seed, n_iterations, n_demos_str, use_replay, n_critical_states
+        )
+    else:
+        # Fallback for non-standard filenames
+        run_name = f"eval-{algo}-{env_id}"
+        tags = ["eval", algo, f"seed{seed}"]
+
     wandb.init(
         project=project,
         entity=entity,
-        name=f"eval-{algo}-{env_id}",
+        name=run_name,
         group=env_id,
-        tags=["eval", algo, f"seed{seed}"],
+        tags=tags,
         config={
             "model_path": str(model_path),
             "env_id": env_id,

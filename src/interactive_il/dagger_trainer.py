@@ -14,6 +14,7 @@ from gymnasium.spaces import Box
 from tqdm import trange
 
 from interactive_il.policy import BCPolicy, resolve_device
+from interactive_il.utils import make_dagger_wandb_name, make_dagger_wandb_tags
 
 try:
     import wandb
@@ -135,33 +136,8 @@ def train_dagger(
     np.random.seed(seed)
     device = resolve_device(device)
 
-    # Initialize wandb
-    if use_wandb:
-        if wandb is None:
-            msg = "wandb is not installed but use_wandb=True"
-            raise RuntimeError(msg)
-        algo_name = "dagger-replay" if use_replay else "dagger"
-        wandb.init(
-            project=wandb_project,
-            name=wandb_name or f"{algo_name}-{env_id}",
-            group=env_id,
-            tags=[algo_name, f"seed{seed}", f"{n_iterations}iters"],
-            config={
-                "env_id": env_id,
-                "algo": algo_name,
-                "n_iterations": n_iterations,
-                "n_traj_per_iter": n_traj_per_iter,
-                "n_epochs": n_epochs,
-                "batch_size": batch_size,
-                "lr": lr,
-                "use_norm": use_norm,
-                "use_replay": use_replay,
-                "buffer_size": buffer_size if use_replay else None,
-                "beta_decay": beta_decay,
-                "n_critical_states": n_critical_states if use_replay else None,
-                "seed": seed,
-            },
-        )
+    # Initialize wandb (needs to be after loading BC to get n_demos_str, but before training)
+    # We'll initialize it later after loading BC checkpoint
 
     # Load expert
     expert = load_expert(expert_path, device=device)
@@ -196,6 +172,38 @@ def train_dagger(
     elif use_norm:
         print(
             "Warning: use_norm=True but no BC checkpoint provided for normalization stats"
+        )
+
+    # Initialize wandb after we have n_demos_str
+    if use_wandb:
+        if wandb is None:
+            msg = "wandb is not installed but use_wandb=True"
+            raise RuntimeError(msg)
+        algo_name = "dagger-replay" if use_replay else "dagger"
+        wandb.init(
+            project=wandb_project,
+            name=wandb_name
+            or make_dagger_wandb_name(n_iterations, use_replay, n_critical_states),
+            group=env_id,
+            tags=make_dagger_wandb_tags(
+                seed, n_iterations, n_demos_str, use_replay, n_critical_states
+            ),
+            config={
+                "env_id": env_id,
+                "algo": algo_name,
+                "n_iterations": n_iterations,
+                "n_demos": n_demos_str,
+                "n_traj_per_iter": n_traj_per_iter,
+                "n_epochs": n_epochs,
+                "batch_size": batch_size,
+                "lr": lr,
+                "use_norm": use_norm,
+                "use_replay": use_replay,
+                "buffer_size": buffer_size if use_replay else None,
+                "beta_decay": beta_decay,
+                "n_critical_states": n_critical_states if use_replay else None,
+                "seed": seed,
+            },
         )
 
     optimizer = optim.Adam(policy.parameters(), lr=lr)

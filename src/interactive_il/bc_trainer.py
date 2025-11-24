@@ -14,6 +14,7 @@ from gymnasium.spaces import Box
 from tqdm import trange
 
 from interactive_il.policy import BCPolicy, resolve_device
+from interactive_il.utils import make_bc_wandb_name, make_bc_wandb_tags
 
 try:
     import wandb
@@ -98,9 +99,9 @@ def train_bc(
             raise RuntimeError(msg)
         wandb.init(
             project=wandb_project,
-            name=wandb_name or f"bc-{env_id}",
+            name=wandb_name or make_bc_wandb_name(n_demos),
             group=env_id,
-            tags=["bc", f"seed{seed}", f"{n_epochs}epochs", f"{n_demos}demos"],
+            tags=make_bc_wandb_tags(seed, n_epochs, n_demos),
             config={
                 "env_id": env_id,
                 "algo": "bc",
