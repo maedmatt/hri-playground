@@ -28,8 +28,8 @@ This project is integrated with [Weights & Biases](https://wandb.ai/) for experi
 
 ```bash
 uv run src/download.py \
-  --repo-id farama-minari/Walker2d-v5-SAC-medium \
-  --filename walker2d-v5-SAC-medium.zip \
+  --repo-id maedmatt/Walker2d-v5-SAC-expert \
+  --filename Walker2d-v5-SAC-expert.zip \
   --env-id Walker2d-v5
 ```
 
