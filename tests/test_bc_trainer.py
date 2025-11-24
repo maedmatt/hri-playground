@@ -26,7 +26,7 @@ def test_bc_trainer():
     # Create fake demos for testing
     demos_path = Path("models/interactive_il/test_demos.pkl")
     expected_policy_path = Path(
-        "models/interactive_il/Walker2d-v5/bc/seed42_2epochs/bc_policy_5demos.pth"
+        "models/interactive_il/Walker2d-v5/bc/bc_5demos_2epochs.pth"
     )
 
     try:

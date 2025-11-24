@@ -18,13 +18,14 @@ def test_dagger_trainer_pure():
     from interactive_il.dagger_trainer import train_dagger
 
     expert_path = download_walker2d_expert()
-    policy_path = Path("models/interactive_il/test_dagger_pure.pth")
+    expected_policy_path = Path(
+        "models/interactive_il/Walker2d-v5/dagger/dagger_unknowndemos_2iters.pth"
+    )
 
     try:
         result = train_dagger(
             env_id="Walker2d-v5",
             expert_path=expert_path,
-            save_path=policy_path,
             bc_init_path=None,
             n_iterations=2,
             n_traj_per_iter=3,
@@ -40,12 +41,18 @@ def test_dagger_trainer_pure():
         assert "iteration_rewards" in result
         assert "final_reward" in result
         assert len(result["iteration_rewards"]) == 2
-        assert policy_path.exists()
+        assert expected_policy_path.exists()
 
     finally:
         # Cleanup test artifacts
-        if policy_path.exists():
-            policy_path.unlink()
+        if expected_policy_path.exists():
+            expected_policy_path.unlink()
+        # Clean up test directories
+        test_dir = Path("models/interactive_il/Walker2d-v5")
+        if test_dir.exists():
+            import shutil
+
+            shutil.rmtree(test_dir)
 
 
 def test_dagger_trainer_replay():
@@ -53,13 +60,14 @@ def test_dagger_trainer_replay():
     from interactive_il.dagger_trainer import train_dagger
 
     expert_path = download_walker2d_expert()
-    policy_path = Path("models/interactive_il/test_dagger_replay.pth")
+    expected_policy_path = Path(
+        "models/interactive_il/Walker2d-v5/dagger-replay/dagger-replay_unknowndemos_2iters_k10.pth"
+    )
 
     try:
         result = train_dagger(
             env_id="Walker2d-v5",
             expert_path=expert_path,
-            save_path=policy_path,
             bc_init_path=None,
             n_iterations=2,
             n_traj_per_iter=3,
@@ -76,12 +84,18 @@ def test_dagger_trainer_replay():
         assert "iteration_rewards" in result
         assert "final_reward" in result
         assert len(result["iteration_rewards"]) == 2
-        assert policy_path.exists()
+        assert expected_policy_path.exists()
 
     finally:
         # Cleanup test artifacts
-        if policy_path.exists():
-            policy_path.unlink()
+        if expected_policy_path.exists():
+            expected_policy_path.unlink()
+        # Clean up test directories
+        test_dir = Path("models/interactive_il/Walker2d-v5")
+        if test_dir.exists():
+            import shutil
+
+            shutil.rmtree(test_dir)
 
 
 if __name__ == "__main__":

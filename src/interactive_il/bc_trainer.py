@@ -65,7 +65,7 @@ def train_bc(
     Train a Behavioral Cloning policy.
 
     The trained policy is saved to:
-    models/interactive_il/{env_id}/bc/seed{seed}_{n_epochs}epochs/bc_policy_{n_demos}demos.pth
+    models/interactive_il/{env_id}/bc/bc_{n_demos}demos_{n_epochs}epochs.pth
 
     Args:
         env_id: Gymnasium environment ID
@@ -165,12 +165,10 @@ def train_bc(
         if use_wandb and wandb is not None:
             wandb.log({"epoch": epoch, "train/loss": avg_loss})
 
-    # Construct save path: models/interactive_il/{env_id}/bc/seed{seed}_{n_epochs}epochs/bc_policy_{n_demos}demos.pth
-    save_dir = (
-        Path("models/interactive_il") / env_id / "bc" / f"seed{seed}_{n_epochs}epochs"
-    )
+    # Construct save path: models/interactive_il/{env_id}/bc/bc_{n_demos}demos_{n_epochs}epochs.pth
+    save_dir = Path("models/interactive_il") / env_id / "bc"
     save_dir.mkdir(parents=True, exist_ok=True)
-    save_path = save_dir / f"bc_policy_{n_demos}demos.pth"
+    save_path = save_dir / f"bc_{n_demos}demos_{n_epochs}epochs.pth"
 
     torch.save(
         {
@@ -184,9 +182,7 @@ def train_bc(
     print(f"Saved policy to {save_path}")
 
     if use_wandb and wandb is not None:
-        wandb.save(
-            str(save_path), base_path=str(save_path.parent.parent.parent), policy="now"
-        )
+        wandb.save(str(save_path), base_path=str(save_path.parent.parent), policy="now")
         wandb.finish()
 
     return {

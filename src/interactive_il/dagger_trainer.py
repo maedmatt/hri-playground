@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import gymnasium as gym
@@ -18,6 +19,17 @@ try:
     import wandb
 except ModuleNotFoundError:
     wandb = None  # type: ignore[assignment]
+
+
+def parse_n_demos_from_bc_path(bc_path: Path) -> int | None:
+    """
+    Parse number of demonstrations from BC checkpoint filename.
+
+    Expected format: bc_{n_demos}demos_{n_epochs}epochs.pth
+    Returns None if pattern doesn't match.
+    """
+    match = re.search(r"bc_(\d+)demos_", bc_path.name)
+    return int(match.group(1)) if match else None
 
 
 def load_expert(expert_path: Path, device: str = "auto"):
@@ -70,7 +82,6 @@ def collect_trajectory(env, policy, obs_mean, obs_std, max_steps: int = 1000):
 def train_dagger(
     env_id: str,
     expert_path: Path,
-    save_path: Path,
     bc_init_path: Path | None = None,
     n_iterations: int = 20,
     n_traj_per_iter: int = 10,
@@ -91,10 +102,15 @@ def train_dagger(
     """
     Train a DAgger policy.
 
+    The trained policy is saved to:
+    - DAgger: models/interactive_il/{env_id}/dagger/dagger_{n_demos}demos_{n_iterations}iters.pth
+    - DAgger-Replay: models/interactive_il/{env_id}/dagger-replay/dagger-replay_{n_demos}demos_{n_iterations}iters_k{n_critical_states}.pth
+
+    Where n_demos is parsed from bc_init_path filename, or "unknown" if not provided.
+
     Args:
         env_id: Gymnasium environment ID
         expert_path: Path to expert policy checkpoint (.zip)
-        save_path: Where to save the trained policy (.pth)
         bc_init_path: Optional BC checkpoint to initialize from
         n_iterations: Number of DAgger iterations
         n_traj_per_iter: Trajectories to collect per iteration
@@ -163,16 +179,20 @@ def train_dagger(
     # Initialize policy
     policy = BCPolicy(obs_dim, act_dim, device=device)
 
-    # Load BC initialization if provided
+    # Load BC initialization if provided and parse n_demos
     obs_mean: np.ndarray | None = None
     obs_std: np.ndarray | None = None
+    n_demos_str = "unknown"
     if bc_init_path is not None and bc_init_path.exists():
         checkpoint = torch.load(bc_init_path, map_location=device, weights_only=False)
         policy.load_state_dict(checkpoint["state_dict"])
         if use_norm:
             obs_mean = checkpoint.get("mean")
             obs_std = checkpoint.get("std")
-        print(f"Initialized from BC checkpoint: {bc_init_path}")
+        n_demos = parse_n_demos_from_bc_path(bc_init_path)
+        if n_demos is not None:
+            n_demos_str = f"{n_demos}"
+        print(f"Initialized from BC checkpoint: {bc_init_path} ({n_demos_str} demos)")
     elif use_norm:
         print(
             "Warning: use_norm=True but no BC checkpoint provided for normalization stats"
@@ -365,8 +385,18 @@ def train_dagger(
 
     env.close()
 
-    # Save checkpoint
-    save_path.parent.mkdir(parents=True, exist_ok=True)
+    # Construct save path
+    algo_name = "dagger-replay" if use_replay else "dagger"
+    save_dir = Path("models/interactive_il") / env_id / algo_name
+    save_dir.mkdir(parents=True, exist_ok=True)
+
+    if use_replay:
+        filename = f"{algo_name}_{n_demos_str}demos_{n_iterations}iters_k{n_critical_states}.pth"
+    else:
+        filename = f"{algo_name}_{n_demos_str}demos_{n_iterations}iters.pth"
+
+    save_path = save_dir / filename
+
     torch.save(
         {
             "state_dict": policy.state_dict(),

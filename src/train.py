@@ -373,21 +373,9 @@ def train_dagger_main(args: argparse.Namespace) -> None:
 
     use_replay = args.algo == "dagger-replay"
 
-    if args.save_path:
-        save_path = args.save_path
-    else:
-        run_name = f"seed{args.seed}-{args.n_iterations}iters"
-        save_path = (
-            Path("models/interactive_il")
-            / args.env_id
-            / run_name
-            / f"{args.algo}_policy.pth"
-        )
-
     train_dagger(
         env_id=args.env_id,
         expert_path=args.expert_path,
-        save_path=save_path,
         bc_init_path=args.bc_init_path,
         n_iterations=args.n_iterations,
         n_traj_per_iter=10,
