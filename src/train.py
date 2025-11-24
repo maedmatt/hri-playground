@@ -6,10 +6,10 @@ Example:
         uv run python src/train.py --env-id Humanoid-v5 --total-timesteps 500000 --n-envs 8 --wandb
 
     BC training:
-        uv run python src/train.py --algo bc --env-id Walker2d-v5 --demos-path models/SB3/Walker2d-v5/huggingface/walker2d-v5-SAC-medium.zip --total-timesteps 30 --wandb
+        uv run python src/train.py --algo bc --env-id Humanoid-v5 --demos-path datasets/Humanoid-v5/30demos.pkl --total-timesteps 30 --wandb
 
     DAgger training:
-        uv run python src/train.py --algo dagger-replay --env-id Walker2d-v5 --expert-path models/SB3/Walker2d-v5/huggingface/walker2d-v5-SAC-medium.zip --n-iterations 20 --wandb --bc-init-path models/interactive_il/Walker2d-v5/seed42-100epochs/bc_policy.pth
+        uv run python src/train.py --algo dagger-replay --env-id Walker2d-v5 --expert-path models/SB3/Walker2d-v5/huggingface/walker2d-v5-SAC-medium.zip --n-iterations 20 --wandb --bc-init-path models/interactive_il/Humanoid-v5/seed42-30epochs/bc_policy.pth
 """
 
 from __future__ import annotations
@@ -351,20 +351,9 @@ def train_bc_main(args: argparse.Namespace) -> None:
         msg = "--demos-path is required for BC training"
         raise ValueError(msg)
 
-    # Determine save path (similar to SB3 structure)
-    if args.save_path:
-        save_path = args.save_path
-    else:
-        # Use models/interactive_il/<env-id>/seed<N>-<epochs>epochs/bc_policy.pth
-        run_name = f"seed{args.seed}-{args.total_timesteps}epochs"
-        save_path = (
-            Path("models/interactive_il") / args.env_id / run_name / "bc_policy.pth"
-        )
-
     train_bc(
         env_id=args.env_id,
         demos_path=args.demos_path,
-        save_path=save_path,
         n_epochs=args.total_timesteps,
         batch_size=1024,
         lr=3e-4,
@@ -409,7 +398,7 @@ def train_dagger_main(args: argparse.Namespace) -> None:
         use_replay=use_replay,
         buffer_size=200000,
         beta_decay=0.95,
-        n_critical_states=10,
+        n_critical_states=100,
         seed=args.seed,
         device=args.device,
         use_wandb=args.wandb,

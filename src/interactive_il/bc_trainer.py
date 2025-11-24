@@ -21,19 +21,23 @@ except ModuleNotFoundError:
     wandb = None  # type: ignore[assignment]
 
 
-def load_demonstrations(demos_path: Path) -> tuple[np.ndarray, np.ndarray]:
+def load_demonstrations(demos_path: Path) -> tuple[np.ndarray, np.ndarray, int]:
     """
     Load demonstrations from a pickle file.
 
     Expected format: list of dicts with keys 'observations' and 'actions'.
+
+    Returns:
+        observations, actions, number of demonstrations
     """
     with open(demos_path, "rb") as f:
         demos = pickle.load(f)
 
+    n_demos = len(demos)
     obs = np.concatenate([d["observations"] for d in demos], axis=0).astype(np.float32)
     acts = np.concatenate([d["actions"] for d in demos], axis=0).astype(np.float32)
 
-    return obs, acts
+    return obs, acts, n_demos
 
 
 def compute_normalization(obs: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -47,7 +51,6 @@ def compute_normalization(obs: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 def train_bc(
     env_id: str,
     demos_path: Path,
-    save_path: Path,
     n_epochs: int = 100,
     batch_size: int = 1024,
     lr: float = 3e-4,
@@ -61,10 +64,12 @@ def train_bc(
     """
     Train a Behavioral Cloning policy.
 
+    The trained policy is saved to:
+    models/interactive_il/{env_id}/bc/seed{seed}_{n_epochs}epochs/bc_policy_{n_demos}demos.pth
+
     Args:
         env_id: Gymnasium environment ID
         demos_path: Path to demonstrations pickle file
-        save_path: Where to save the trained policy (.pth)
         n_epochs: Number of training epochs
         batch_size: Batch size for training
         lr: Learning rate
@@ -82,6 +87,10 @@ def train_bc(
     np.random.seed(seed)
     device = resolve_device(device)
 
+    # Load demonstrations
+    obs, acts, n_demos = load_demonstrations(demos_path)
+    print(f"Loaded {n_demos} demonstrations ({len(obs)} transitions) from {demos_path}")
+
     # Initialize wandb
     if use_wandb:
         if wandb is None:
@@ -91,21 +100,19 @@ def train_bc(
             project=wandb_project,
             name=wandb_name or f"bc-{env_id}",
             group=env_id,
-            tags=["bc", f"seed{seed}", f"{n_epochs}epochs"],
+            tags=["bc", f"seed{seed}", f"{n_epochs}epochs", f"{n_demos}demos"],
             config={
                 "env_id": env_id,
                 "algo": "bc",
                 "n_epochs": n_epochs,
+                "n_demos": n_demos,
+                "n_transitions": len(obs),
                 "batch_size": batch_size,
                 "lr": lr,
                 "use_norm": use_norm,
                 "seed": seed,
             },
         )
-
-    # Load demonstrations
-    obs, acts = load_demonstrations(demos_path)
-    print(f"Loaded {len(obs)} transitions from {demos_path}")
 
     # Compute normalization
     obs_mean: np.ndarray | None = None
@@ -158,8 +165,13 @@ def train_bc(
         if use_wandb and wandb is not None:
             wandb.log({"epoch": epoch, "train/loss": avg_loss})
 
-    # Save checkpoint
-    save_path.parent.mkdir(parents=True, exist_ok=True)
+    # Construct save path: models/interactive_il/{env_id}/bc/seed{seed}_{n_epochs}epochs/bc_policy_{n_demos}demos.pth
+    save_dir = (
+        Path("models/interactive_il") / env_id / "bc" / f"seed{seed}_{n_epochs}epochs"
+    )
+    save_dir.mkdir(parents=True, exist_ok=True)
+    save_path = save_dir / f"bc_policy_{n_demos}demos.pth"
+
     torch.save(
         {
             "state_dict": policy.state_dict(),
@@ -172,7 +184,9 @@ def train_bc(
     print(f"Saved policy to {save_path}")
 
     if use_wandb and wandb is not None:
-        wandb.save(str(save_path), base_path=str(save_path.parent.parent), policy="now")
+        wandb.save(
+            str(save_path), base_path=str(save_path.parent.parent.parent), policy="now"
+        )
         wandb.finish()
 
     return {

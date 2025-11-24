@@ -25,7 +25,9 @@ def test_bc_trainer():
     """Test that BC trainer runs without errors."""
     # Create fake demos for testing
     demos_path = Path("models/interactive_il/test_demos.pkl")
-    policy_path = Path("models/interactive_il/test_bc_policy.pth")
+    expected_policy_path = Path(
+        "models/interactive_il/Walker2d-v5/bc/seed42_2epochs/bc_policy_5demos.pth"
+    )
 
     try:
         create_fake_demos(demos_path, n_demos=5, traj_length=100)
@@ -33,7 +35,6 @@ def test_bc_trainer():
         result = train_bc(
             env_id="Walker2d-v5",
             demos_path=demos_path,
-            save_path=policy_path,
             n_epochs=2,
             batch_size=64,
             lr=3e-4,
@@ -47,14 +48,20 @@ def test_bc_trainer():
         losses = result["losses"]
         assert isinstance(losses, list)
         assert len(losses) == 2
-        assert policy_path.exists()
+        assert expected_policy_path.exists()
 
     finally:
         # Cleanup test artifacts
         if demos_path.exists():
             demos_path.unlink()
-        if policy_path.exists():
-            policy_path.unlink()
+        if expected_policy_path.exists():
+            expected_policy_path.unlink()
+        # Clean up test directories
+        test_dir = Path("models/interactive_il/Walker2d-v5")
+        if test_dir.exists():
+            import shutil
+
+            shutil.rmtree(test_dir)
 
 
 if __name__ == "__main__":
