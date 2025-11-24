@@ -64,7 +64,7 @@ def parse_args() -> argparse.Namespace:
         help="Algorithm: ppo/a2c/sac/td3 for .zip files, bc/dagger/dagger-replay for .pth files",
     )
     parser.add_argument("--episodes", type=int, default=5)
-    parser.add_argument("--max-steps", type=int, default=2_000)
+    parser.add_argument("--max-steps", type=int, default=1_000)
     parser.add_argument(
         "--sleep", type=float, default=1 / 60, help="Delay between frames"
     )
