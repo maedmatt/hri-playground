@@ -11,6 +11,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from gymnasium.spaces import Box
+from torch.utils.data import random_split
 from tqdm import trange
 
 from interactive_il.policy import BCPolicy, resolve_device
@@ -56,6 +57,7 @@ def train_bc(
     batch_size: int = 1024,
     lr: float = 3e-4,
     use_norm: bool = True,
+    val_split: float = 0.1,
     seed: int = 42,
     device: str = "auto",
     use_wandb: bool = False,
@@ -75,6 +77,7 @@ def train_bc(
         batch_size: Batch size for training
         lr: Learning rate
         use_norm: Whether to normalize observations
+        val_split: Fraction of data to use for validation (0.0-1.0)
         seed: Random seed
         device: PyTorch device (cpu, cuda, auto)
         use_wandb: Enable Weights & Biases logging
@@ -111,6 +114,7 @@ def train_bc(
                 "batch_size": batch_size,
                 "lr": lr,
                 "use_norm": use_norm,
+                "val_split": val_split,
                 "seed": seed,
             },
         )
@@ -138,19 +142,41 @@ def train_bc(
     optimizer = optim.Adam(policy.parameters(), lr=lr)
     loss_fn = nn.MSELoss()
 
-    # Create dataset
+    # Create dataset and split into train/val
     dataset = torch.utils.data.TensorDataset(
         torch.from_numpy(obs), torch.from_numpy(acts)
     )
-    loader = torch.utils.data.DataLoader(
-        dataset, batch_size=batch_size, shuffle=True, drop_last=True
-    )
+
+    if val_split > 0:
+        val_size = int(val_split * len(dataset))
+        train_size = len(dataset) - val_size
+        train_dataset, val_dataset = random_split(
+            dataset,
+            [train_size, val_size],
+            generator=torch.Generator().manual_seed(seed),
+        )
+        train_loader = torch.utils.data.DataLoader(
+            train_dataset, batch_size=batch_size, shuffle=True, drop_last=True
+        )
+        val_loader = torch.utils.data.DataLoader(
+            val_dataset, batch_size=batch_size, shuffle=False
+        )
+    else:
+        train_loader = torch.utils.data.DataLoader(
+            dataset, batch_size=batch_size, shuffle=True, drop_last=True
+        )
+        val_loader = None
 
     # Training loop
-    losses: list[float] = []
+    train_losses: list[float] = []
+    val_losses: list[float] = []
+
     for epoch in trange(1, n_epochs + 1, desc="Training BC"):
+        # Training
+        policy.train()
         epoch_loss = 0.0
-        for obs_batch, act_batch in loader:
+        n_train_samples = 0
+        for obs_batch, act_batch in train_loader:
             obs_batch = obs_batch.to(device)
             act_batch = act_batch.to(device)
             optimizer.zero_grad()
@@ -159,12 +185,34 @@ def train_bc(
             loss.backward()
             optimizer.step()
             epoch_loss += loss.item() * obs_batch.size(0)
+            n_train_samples += obs_batch.size(0)
 
-        avg_loss = epoch_loss / len(dataset)
-        losses.append(avg_loss)
+        avg_train_loss = epoch_loss / n_train_samples
+        train_losses.append(avg_train_loss)
 
+        # Validation
+        if val_loader is not None:
+            policy.eval()
+            val_epoch_loss = 0.0
+            n_val_samples = 0
+            with torch.no_grad():
+                for obs_batch, act_batch in val_loader:
+                    obs_batch = obs_batch.to(device)
+                    act_batch = act_batch.to(device)
+                    pred = policy(obs_batch)
+                    loss = loss_fn(pred, act_batch)
+                    val_epoch_loss += loss.item() * obs_batch.size(0)
+                    n_val_samples += obs_batch.size(0)
+
+            avg_val_loss = val_epoch_loss / n_val_samples
+            val_losses.append(avg_val_loss)
+
+        # Logging
         if use_wandb and wandb is not None:
-            wandb.log({"epoch": epoch, "train/loss": avg_loss})
+            log_dict = {"epoch": epoch, "train/loss": avg_train_loss}
+            if val_loader is not None:
+                log_dict["val/loss"] = avg_val_loss
+            wandb.log(log_dict)
 
     # Construct save path: models/interactive_il/{env_id}/bc/bc_{n_demos}demos_{n_epochs}epochs.pth
     save_dir = Path("models/interactive_il") / env_id / "bc"
@@ -186,8 +234,12 @@ def train_bc(
         wandb.save(str(save_path), base_path=str(save_path.parent.parent), policy="now")
         wandb.finish()
 
-    return {
-        "losses": losses,
-        "final_loss": losses[-1],
+    result = {
+        "train_losses": train_losses,
+        "final_train_loss": train_losses[-1],
         "n_epochs": n_epochs,
     }
+    if val_losses:
+        result["val_losses"] = val_losses
+        result["final_val_loss"] = val_losses[-1]
+    return result
