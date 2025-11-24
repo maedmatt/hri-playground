@@ -33,6 +33,8 @@ uv run src/download.py \
   --env-id Walker2d-v5
 ```
 
+> **Note**: Additional pretrained experts are available on [HuggingFace](https://huggingface.co/maedmatt).
+
 ### 2. Collect demonstrations
 
 ```bash
