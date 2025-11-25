@@ -355,7 +355,7 @@ def train_bc_main(args: argparse.Namespace) -> None:
         env_id=args.env_id,
         demos_path=args.demos_path,
         n_epochs=args.total_timesteps,
-        batch_size=1024,
+        batch_size=None,
         lr=3e-4,
         use_norm=True,
         seed=args.seed,

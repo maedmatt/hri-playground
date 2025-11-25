@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import pickle
 from pathlib import Path
 
@@ -50,11 +51,40 @@ def compute_normalization(obs: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return mean, std
 
 
+def compute_adaptive_batch_size(
+    dataset_size: int,
+    target_batches_per_epoch: int = 50,
+    min_batch_size: int = 32,
+    max_batch_size: int = 2048,
+) -> int:
+    """
+    Compute adaptive batch size based on dataset size.
+
+    Targets ~50 batches per epoch for good balance between:
+    - Gradient noise (helps generalization)
+    - Computational efficiency
+    - Smooth learning curves
+
+    Args:
+        dataset_size: Number of samples in dataset
+        target_batches_per_epoch: Desired number of batches per epoch
+        min_batch_size: Minimum allowed batch size
+        max_batch_size: Maximum allowed batch size
+
+    Returns:
+        Batch size rounded to nearest power of 2
+    """
+    batch_size = dataset_size / target_batches_per_epoch
+    batch_size = max(min_batch_size, min(max_batch_size, batch_size))
+    batch_size = 2 ** round(math.log2(batch_size))
+    return int(batch_size)
+
+
 def train_bc(
     env_id: str,
     demos_path: Path,
     n_epochs: int = 100,
-    batch_size: int = 1024,
+    batch_size: int | None = None,
     lr: float = 3e-4,
     use_norm: bool = True,
     val_split: float = 0.1,
@@ -74,7 +104,7 @@ def train_bc(
         env_id: Gymnasium environment ID
         demos_path: Path to demonstrations pickle file
         n_epochs: Number of training epochs
-        batch_size: Batch size for training
+        batch_size: Batch size for training (None = auto-compute based on dataset size)
         lr: Learning rate
         use_norm: Whether to normalize observations
         val_split: Fraction of data to use for validation (0.0-1.0)
@@ -94,6 +124,11 @@ def train_bc(
     # Load demonstrations
     obs, acts, n_demos = load_demonstrations(demos_path)
     print(f"Loaded {n_demos} demonstrations ({len(obs)} transitions) from {demos_path}")
+
+    # Compute batch_size if not provided
+    train_size = int((1 - val_split) * len(obs))
+    if batch_size is None:
+        batch_size = compute_adaptive_batch_size(train_size)
 
     # Initialize wandb
     if use_wandb:
