@@ -41,6 +41,8 @@ make lint     # Run linting and type checking
 make test     # Run tests
 ```
 
+> **Note**: For additional information about development tools and setup, see [development.md](development.md).
+
 ## Weights & Biases
 
 This project integrates with [Weights & Biases](https://wandb.ai/) for experiment tracking. Run `wandb login` before your first session, then add the `--wandb` flag to log metrics, checkpoints, and videos.
@@ -73,6 +75,8 @@ uv run src/collect_demonstrations.py \
 ```
 
 ### 3. Train a policy
+
+> **Note on GPU usage**: MuJoCo environments (Humanoid, Walker2d, etc.) run physics simulations on CPU only. Use `--device cuda` only for large networks or image-based policies.
 
 **Behavioral Cloning**: Learn a policy directly from expert demonstrations. See `docs/` for algorithm details.
 
