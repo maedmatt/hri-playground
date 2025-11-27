@@ -1,15 +1,7 @@
 """
-Training script for SB3 (PPO/SAC/TD3/A2C), Behavioral Cloning, and DAgger
+Training script for SB3 (PPO/SAC/TD3/A2C), Behavioral Cloning, and DAgger.
 
-Example:
-    SB3 training:
-        uv run python src/train.py --env-id Humanoid-v5 --total-timesteps 500000 --n-envs 8 --wandb
-
-    BC training:
-        uv run python src/train.py --algo bc --env-id Humanoid-v5 --demos-path datasets/Humanoid-v5/30demos.pkl --total-timesteps 30 --wandb
-
-    DAgger training:
-        uv run python src/train.py --algo dagger-replay --env-id Walker2d-v5 --expert-path models/SB3/Walker2d-v5/huggingface/walker2d-v5-SAC-medium.zip --n-iterations 20 --wandb --bc-init-path models/interactive_il/Humanoid-v5/seed42-30epochs/bc_policy.pth
+See README.md for usage examples and detailed documentation.
 """
 
 from __future__ import annotations

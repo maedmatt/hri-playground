@@ -1,12 +1,7 @@
 """
-Play a trained policy on a Gymnasium environment with (PPO/SAC/TD3/A2C), Behavioral Cloning, and DAgger
+Evaluate a trained policy (SB3/BC/DAgger) on a Gymnasium environment.
 
-Example:
-    SB3 policy:
-        uv run src/play.py --model-path models/SB3/Humanoid-v5/huggingface/humanoid-v5-sac-expert.zip --env-id Humanoid-v5 --algo ppo
-
-    BC/DAgger policy:
-        uv run src/play.py --model-path models/interactive_il/Walker2d-v5/seed42-20iters/dagger-replay_policy.pth --env-id Walker2d-v5 --algo sac
+See README.md for usage examples and detailed documentation.
 """
 
 from __future__ import annotations

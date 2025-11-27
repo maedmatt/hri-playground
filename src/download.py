@@ -1,12 +1,7 @@
 """
-Download pretrained models from HuggingFace and save to standard location
+Download pretrained models from HuggingFace.
 
-Example:
-    Download Walker2d expert:
-        uv run src/download.py --repo-id maedmatt/Walker2d-v5-SAC-expert --filename walker2d-v5-SAC-expert.zip --env-id Walker2d-v5
-
-    Download with custom name:
-        uv run src/download.py --repo-id maedmatt/Walker2d-v5-SAC-expert --filename walker2d-v5-SAC-expert.zip --env-id Walker2d-v5 --save-name expert.zip
+See README.md for usage examples and detailed documentation.
 """
 
 from __future__ import annotations
