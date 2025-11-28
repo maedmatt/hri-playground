@@ -1,3 +1,0 @@
-The link of the GitHub repository and the models are inside the report, this is just a place holder:
-- https://github.com/maedmatt/hri-playground
-- https://huggingface.co/maedmatt
